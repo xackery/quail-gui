@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"image"
+	"image/png"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -23,6 +25,7 @@ import (
 	"github.com/xackery/quail/pfs"
 	"github.com/xackery/quail/quail"
 	"github.com/xackery/wlk/walk"
+	"golang.org/x/image/bmp"
 )
 
 func (c *Client) inspect(file string) (interface{}, error) {
@@ -159,6 +162,42 @@ func (c *Client) inspectContent(file string, data *bytes.Reader) (interface{}, e
 		if err != nil {
 			return nil, fmt.Errorf("dds.Decode %s: %w", file, err)
 		}
+		bmp, err := walk.NewBitmapFromImageForDPI(img, 96)
+		if err != nil {
+			return nil, fmt.Errorf("new bitmap from image for dpi: %w", err)
+		}
+		gui.SetImage(bmp)
+		return nil, nil
+	case ".png":
+		img, err := png.Decode(data)
+		if err != nil {
+			return nil, fmt.Errorf("png.Decode %s: %w", file, err)
+		}
+		bmp, err := walk.NewBitmapFromImageForDPI(img, 96)
+		if err != nil {
+			return nil, fmt.Errorf("new bitmap from image for dpi: %w", err)
+		}
+		gui.SetImage(bmp)
+		return nil, nil
+	case ".bmp":
+		buf := new(bytes.Buffer)
+		_, err := buf.ReadFrom(data)
+		if err != nil {
+			return nil, fmt.Errorf("buf read from: %w", err)
+		}
+		var img image.Image
+		if string(buf.Bytes()[0:3]) == "DDS" {
+			img, err = dds.Decode(data)
+			if err != nil {
+				return nil, fmt.Errorf("dds.Decode %s: %w", file, err)
+			}
+		} else {
+			img, err = bmp.Decode(data)
+			if err != nil {
+				return nil, fmt.Errorf("bmp.Decode %s: %w", file, err)
+			}
+		}
+
 		bmp, err := walk.NewBitmapFromImageForDPI(img, 96)
 		if err != nil {
 			return nil, fmt.Errorf("new bitmap from image for dpi: %w", err)
