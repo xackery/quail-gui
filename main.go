@@ -78,6 +78,14 @@ func main() {
 		os.Exit(0)
 	}()
 
+	if len(os.Args) > 1 {
+		path := os.Args[1]
+		err = c.Open(path, "")
+		if err != nil {
+			slog.Printf("Failed to open %s: %s", path, err.Error())
+		}
+	}
+
 	errCode := gui.Run()
 	if errCode != 0 {
 		fmt.Println("Failed to run:", errCode)

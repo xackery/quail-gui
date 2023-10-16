@@ -6,6 +6,7 @@ package gui
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/xackery/quail-gui/config"
@@ -15,22 +16,26 @@ import (
 )
 
 type Gui struct {
-	ctx         context.Context
-	cancel      context.CancelFunc
-	mw          *walk.MainWindow
-	progress    *walk.ProgressBar
-	log         *walk.TextEdit
-	table       *walk.TableView
-	newHandler  []func()
-	openHandler []func(path string)
-	fileView    *FileView
-	sectionList *walk.ListBox
-	treeView    *walk.TreeView
+	ctx            context.Context
+	cancel         context.CancelFunc
+	mw             *walk.MainWindow
+	progress       *walk.ProgressBar
+	log            *walk.TextEdit
+	table          *walk.TableView
+	newHandler     []func()
+	openHandler    []func(path string, file string) error
+	saveHandler    []func(path string)
+	refreshHandler []func()
+	fileView       *FileView
+	fileEntries    []*FileViewEntry
+	sectionList    *walk.ListBox
+	sections       map[string]*Section
+	contents       *walk.TextEdit
+	statusBar      *walk.StatusBarItem
 }
 
 var (
-	gui        *Gui
-	isAutoMode bool
+	gui *Gui
 )
 
 // NewMainWindow creates a new main window
@@ -39,7 +44,6 @@ func NewMainWindow(ctx context.Context, cancel context.CancelFunc, cfg *config.C
 		ctx:    ctx,
 		cancel: cancel,
 	}
-	isAutoMode = true
 
 	var err error
 
@@ -47,7 +51,7 @@ func NewMainWindow(ctx context.Context, cancel context.CancelFunc, cfg *config.C
 		Name: "quail-gui",
 		MenuItems: []cpl.MenuItem{
 			cpl.Menu{
-				Text: "&File",
+				Text: "&Archive",
 				Items: []cpl.MenuItem{
 					cpl.Action{
 						Text: "&New",
@@ -72,7 +76,7 @@ func NewMainWindow(ctx context.Context, cancel context.CancelFunc, cfg *config.C
 							}
 							slog.Printf("Opening %s\n", path)
 							for _, fn := range gui.openHandler {
-								fn(path)
+								fn(path, "")
 							}
 						},
 						Shortcut: cpl.Shortcut{
@@ -83,11 +87,34 @@ func NewMainWindow(ctx context.Context, cancel context.CancelFunc, cfg *config.C
 					cpl.Action{
 						Text: "&Save As...",
 						OnTriggered: func() {
-							fmt.Println("Save triggered")
+							path, err := ShowSave("Save EQ Archive", "All Archives|*.pfs;*.eqg;*.s3d;*.pak|PFS Files (*.pfs)|*.pfs|EQG Files (*.eqg)|*.eqg|S3D Files (*.s3d)|*.s3d|PAK Files (*.pak)|*.pak", ".")
+							if err != nil {
+								slog.Printf("Failed to save: %s\n", err)
+								return
+							}
+							slog.Printf("Saving %s\n", path)
+							for _, fn := range gui.saveHandler {
+								fn(path)
+							}
 						},
 						Shortcut: cpl.Shortcut{
 							Key:       walk.KeyS,
 							Modifiers: walk.ModControl,
+						},
+					},
+					cpl.Action{
+						Text: "Refresh",
+						OnTriggered: func() {
+							lastSel := gui.table.CurrentIndex()
+							//lastSection := gui.sectionList.CurrentIndex()
+							for _, fn := range gui.refreshHandler {
+								fn()
+							}
+							gui.table.SetCurrentIndex(lastSel)
+							//gui.sectionList.SetCurrentIndex(lastSection)
+						},
+						Shortcut: cpl.Shortcut{
+							Key: walk.KeyF5,
 						},
 					},
 					cpl.Action{
@@ -98,9 +125,51 @@ func NewMainWindow(ctx context.Context, cancel context.CancelFunc, cfg *config.C
 					},
 				},
 			},
+			cpl.Menu{
+				Text: "&Content",
+				Items: []cpl.MenuItem{
+					cpl.Action{
+						Text: "&Export Selected",
+						OnTriggered: func() {
+							path, err := ShowSave("Export All", "All Files|*.*", ".")
+							if err != nil {
+								slog.Printf("Failed to save: %s\n", err)
+								return
+							}
+							slog.Printf("Exporting all to %s\n", path)
+							for _, fn := range gui.saveHandler {
+								fn(path)
+							}
+						},
+					},
+					cpl.Action{
+						Text: "Export &All",
+						OnTriggered: func() {
+							path, err := ShowSave("Export All", "All Files|*.*", ".")
+							if err != nil {
+								slog.Printf("Failed to save: %s\n", err)
+								return
+							}
+							slog.Printf("Exporting all to %s\n", path)
+							for _, fn := range gui.saveHandler {
+								fn(path)
+							}
+						},
+					},
+				},
+			},
 		},
 		AssignTo: &gui.mw,
 		Visible:  false,
+		StatusBarItems: []cpl.StatusBarItem{
+			{
+				AssignTo: &gui.statusBar,
+				Text:     "Ready",
+				OnClicked: func() {
+					fmt.Println("status bar clicked")
+				},
+			},
+		},
 	}
 	err = cmw.Create()
 	if err != nil {
@@ -108,7 +177,7 @@ func NewMainWindow(ctx context.Context, cancel context.CancelFunc, cfg *config.C
 	}
 
 	gui.mw.SetTitle("quail-gui v" + version)
-	gui.mw.SetMinMaxSize(walk.Size{Width: 305, Height: 371}, walk.Size{Width: 305, Height: 371})
+	gui.mw.SetMinMaxSize(walk.Size{Width: 405, Height: 371}, walk.Size{Width: 0, Height: 0})
 	gui.mw.SetLayout(walk.NewVBoxLayout())
 	gui.mw.SetVisible(false)
 
@@ -132,6 +201,7 @@ func NewMainWindow(ctx context.Context, cancel context.CancelFunc, cfg *config.C
 	gui.table.SetAlternatingRowBG(true)
 	gui.table.SetColumnsOrderable(true)
 	gui.table.SetMultiSelection(false)
+	gui.table.CurrentIndexChanged().Attach(onTableSelect)
 	gui.table.ItemActivated().Attach(func() {
 		fmt.Printf("Activated: %v\n", gui.table.SelectedIndexes())
 	})
@@ -169,36 +239,62 @@ func NewMainWindow(ctx context.Context, cancel context.CancelFunc, cfg *config.C
 		return fmt.Errorf("new list box: %w", err)
 	}
 	gui.sectionList.SetName("Section")
-	gui.sectionList.ItemActivated().Attach(func() {
-		fmt.Printf("Activated: %v\n", gui.sectionList.CurrentIndex())
-	})
+	gui.sectionList.ItemActivated().Attach(onSectionListSelect)
+	gui.sectionList.CurrentIndexChanged().Attach(onSectionListSelect)
+	gui.sectionList.SetWidth(200)
 
-	gui.treeView, err = walk.NewTreeView(gui.mw)
+	gui.contents, err = walk.NewTextEdit(gui.mw)
 	if err != nil {
-		return fmt.Errorf("new tree view: %w", err)
+		return fmt.Errorf("new text edit: %w", err)
 	}
-	gui.treeView.SetName("treeView")
+	gui.contents.SetReadOnly(true)
+	gui.contents.SetEnabled(false)
 
 	comp, err := walk.NewComposite(gui.mw)
 	if err != nil {
 		return fmt.Errorf("new composite: %w", err)
 	}
 	comp.SetLayout(walk.NewHBoxLayout())
-	comp.Children().Add(gui.table)
-	comp.Children().Add(gui.sectionList)
-	comp.Children().Add(gui.treeView)
+
+	entry, err := walk.NewComposite(gui.mw)
+	if err != nil {
+		return fmt.Errorf("new composite: %w", err)
+	}
+	entry.SetLayout(walk.NewVBoxLayout())
+
+	entry.Children().Add(newLabel("Files"))
+	entry.Children().Add(gui.table)
+	comp.Children().Add(entry)
+
+	entry, err = walk.NewComposite(gui.mw)
+	if err != nil {
+		return fmt.Errorf("new composite: %w", err)
+	}
+	entry.SetLayout(walk.NewVBoxLayout())
+	entry.Children().Add(newLabel("Category"))
+	entry.Children().Add(gui.sectionList)
+	comp.Children().Add(entry)
+
+	entry, err = walk.NewComposite(gui.mw)
+	if err != nil {
+		return fmt.Errorf("new composite: %w", err)
+	}
+	entry.SetLayout(walk.NewVBoxLayout())
+	entry.Children().Add(newLabel("Contents"))
+	entry.Children().Add(gui.contents)
+	comp.Children().Add(entry)
 
 	gui.progress, err = walk.NewProgressBar(gui.mw)
 	if err != nil {
 		return fmt.Errorf("new progress bar: %w", err)
 	}
 
-	gui.progress.SetMinMaxSize(walk.Size{Width: 400, Height: 39}, walk.Size{Width: 400, Height: 39})
-	gui.progress.SetValue(50)
-	gui.progress.SetMinMaxSize(walk.Size{Width: 400, Height: 39}, walk.Size{Width: 400, Height: 39})
+	//gui.progress.SetMinMaxSize(walk.Size{Width: 400, Height: 39}, walk.Size{Width: 400, Height: 39})
+	gui.progress.SetValue(0)
+	//gui.progress.SetMinMaxSize(walk.Size{Width: 400, Height: 39}, walk.Size{Width: 400, Height: 39})
 
 	gui.mw.Children().Add(gui.progress)
-	gui.mw.SetSize(walk.Size{Width: 305, Height: 371})
+	gui.mw.SetSize(walk.Size{Width: 405, Height: 371})
 
 	return nil
 }
@@ -224,11 +320,12 @@ func Logf(format string, a ...interface{}) {
 		return
 	}
 
-	if !isAutoMode {
-		//convert \n to \r\n
-		format = strings.ReplaceAll(format, "\n", "\r\n")
-		gui.log.AppendText(fmt.Sprintf(format, a...))
-	}
+	gui.statusBar.SetText(fmt.Sprintf(strings.ReplaceAll("  "+format, "\n", ""), a...))
+
+	//convert \n to \r\n
+	format = strings.ReplaceAll(format, "\n", "\r\n")
+	gui.log.AppendText(fmt.Sprintf(format, a...))
+
 }
 
 func LogClear() {
@@ -304,11 +401,18 @@ func SubscribeNew(fn func()) {
 	gui.newHandler = append(gui.newHandler, fn)
 }
 
-func SubscribeOpen(fn func(path string)) {
+func SubscribeOpen(fn func(path string, file string) error) {
 	if gui == nil {
 		return
 	}
 	gui.openHandler = append(gui.openHandler, fn)
+}
+
+func SubscribeRefresh(fn func()) {
+	if gui == nil {
+		return
+	}
+	gui.refreshHandler = append(gui.refreshHandler, fn)
 }
 
 func ShowOpen(title string, filter string, initialDirPath string) (string, error) {
@@ -330,9 +434,90 @@ func ShowOpen(title string, filter string, initialDirPath string) (string, error
 	return dialog.FilePath, nil
 }
 
+func SubscribeSave(fn func(path string)) {
+	if gui == nil {
+		return
+	}
+	gui.saveHandler = append(gui.saveHandler, fn)
+}
+
+func ShowSave(title string, filter string, initialDirPath string) (string, error) {
+	if gui == nil {
+		return "", fmt.Errorf("gui not initialized")
+	}
+	dialog := walk.FileDialog{
+		Title:          title,
+		Filter:         filter,
+		InitialDirPath: initialDirPath,
+	}
+	ok, err := dialog.ShowSave(gui.mw)
+	if err != nil {
+		return "", fmt.Errorf("show save: %w", err)
+	}
+	if !ok {
+		return "", fmt.Errorf("show save: cancelled")
+	}
+	return dialog.FilePath, nil
+}
+
 func SetFileViewItems(items []*FileViewEntry) {
 	if gui == nil {
 		return
 	}
+	gui.fileEntries = items
 	gui.fileView.SetItems(items)
+}
+
+func SetSections(sections map[string]*Section) {
+	if gui == nil {
+		return
+	}
+	gui.sections = sections
+	sectionList := []string{}
+	for _, v := range sections {
+		sectionList = append(sectionList, fmt.Sprintf("%s (%d)", v.Name, v.Count))
+	}
+	sort.Strings(sectionList)
+	gui.sectionList.SetModel(sectionList)
+}
+
+func onTableSelect() {
+	if len(gui.fileEntries) == 0 {
+		slog.Printf("No files to open")
+		return
+	}
+
+	if gui.table.CurrentIndex() < 0 || gui.table.CurrentIndex() >= len(gui.fileEntries) {
+		//slog.Printf("Invalid file index %d", gui.table.CurrentIndex())
+		return
+	}
+	name := gui.fileEntries[gui.table.CurrentIndex()].Name
+	slog.Printf("Selected %s\n", name)
+	for _, fn := range gui.openHandler {
+		err := fn("", name)
+		if err != nil {
+			slog.Printf("Failed to open: %s\n", err)
+			gui.sectionList.SetModel([]string{})
+			gui.sectionList.SetEnabled(false)
+			gui.contents.SetEnabled(false)
+			return
+		}
+	}
+	gui.sectionList.SetEnabled(true)
+	gui.contents.SetEnabled(true)
+}
+
+func onSectionListSelect() {
+	fmt.Printf("Activated: %v\n", gui.sectionList.CurrentIndex())
+	if gui.sectionList.CurrentIndex() < 0 || gui.sectionList.CurrentIndex() >= len(gui.sectionList.Model().([]string)) {
+		slog.Printf("Invalid section index %d\n", gui.sectionList.CurrentIndex())
+		return
+	}
+	//get current sectionlist
+	name := gui.sectionList.Model().([]string)[gui.sectionList.CurrentIndex()]
+
+	gui.sectionList.SetEnabled(true)
+	gui.contents.SetEnabled(true)
+	gui.contents.SetText(gui.sections[name].Content)
+	slog.Printf("Selected %s\n", name)
 }
