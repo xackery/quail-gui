@@ -1,6 +1,6 @@
 module github.com/xackery/quail-gui
 
-go 1.21.2
+go 1.21
 
 require (
 	github.com/xackery/quail v0.0.0-20231001085711-52408a85ab4c
