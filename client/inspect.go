@@ -3,6 +3,7 @@ package client
 import (
 	"bytes"
 	"context"
+	_ "embed"
 	"fmt"
 	"image"
 	"image/png"
@@ -12,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	ico "github.com/biessek/golang-ico"
 	"github.com/malashin/dds"
 	"github.com/xackery/quail-gui/gui"
 	"github.com/xackery/quail-gui/slog"
@@ -26,7 +28,71 @@ import (
 	"github.com/xackery/quail/quail"
 	"github.com/xackery/wlk/walk"
 	"golang.org/x/image/bmp"
+	"golang.org/x/image/draw"
 )
+
+var (
+
+	//go:embed ico/unk.ico
+	unkIco []byte
+	unkImg *walk.Bitmap
+	//go:embed ico/ani.ico
+	aniIco []byte
+	aniImg *walk.Bitmap
+	//go:embed ico/mds.ico
+	mdsIco []byte
+	mdsImg *walk.Bitmap
+	//go:embed ico/lay.ico
+	layIco []byte
+	layImg *walk.Bitmap
+	//go:embed ico/mod.ico
+	modIco []byte
+	modImg *walk.Bitmap
+
+	//go:embed ico/pts.ico
+	ptsIco []byte
+	ptsImg *walk.Bitmap
+
+	//go:embed ico/prt.ico
+	prtIco []byte
+	prtImg *walk.Bitmap
+
+	icos = map[string]*walk.Bitmap{
+		".ani": aniImg,
+		".mds": mdsImg,
+		".lay": layImg,
+		".mod": modImg,
+		".unk": unkImg,
+		".pts": ptsImg,
+		".prt": prtImg,
+	}
+)
+
+func init() {
+	icoMap := map[string][]byte{
+		".ani": aniIco,
+		".mds": mdsIco,
+		".lay": layIco,
+		".mod": modIco,
+		".unk": unkIco,
+		".pts": ptsIco,
+		".prt": prtIco,
+	}
+	for ext, icoData := range icoMap {
+		img, err := ico.Decode(bytes.NewReader(icoData))
+		if err != nil {
+			slog.Printf("Failed to decode %s: %s\n", ext, err.Error())
+			continue
+		}
+		bmp, err := walk.NewBitmapFromImageForDPI(img, 96)
+		if err != nil {
+			slog.Printf("Failed to create bitmap from image: %s\n", err.Error())
+			continue
+		}
+		icos[ext] = bmp
+	}
+
+}
 
 func (c *Client) inspect(file string) (interface{}, error) {
 	if len(file) < 2 {
@@ -39,6 +105,7 @@ func (c *Client) inspect(file string) (interface{}, error) {
 		entries := []*gui.FileViewEntry{}
 		for _, fe := range c.pfs.Files() {
 			entries = append(entries, &gui.FileViewEntry{
+				Icon: generateIcon(fe.Name(), fe.Data()),
 				Name: fe.Name(),
 				Ext:  strings.ToLower(filepath.Ext(fe.Name())),
 				Size: generateSize(len(fe.Data())),
@@ -323,4 +390,91 @@ func generateSize(in int) string {
 	}
 	val /= 1024
 	return fmt.Sprintf("%0.0f TB", val)
+}
+
+func generateIcon(name string, data []byte) *walk.Bitmap {
+	var err error
+	defer func() {
+		if err != nil {
+			slog.Printf("GenerateIcon: %s", err)
+			return
+		}
+	}()
+
+	defaultImg := unkImg
+
+	ext := strings.ToLower(filepath.Ext(name))
+	ico, ok := icos[ext]
+	if ok && ext != "unk" {
+		return ico
+	}
+
+	var img image.Image
+	var wBmp *walk.Bitmap
+	if ext == ".dds" {
+		img, err = dds.Decode(bytes.NewReader(data))
+		if err != nil {
+			err = fmt.Errorf("dds.Decode %s: %w", name, err)
+			return defaultImg
+		}
+		dst := image.NewRGBA(image.Rect(0, 0, img.Bounds().Max.X/2, img.Bounds().Max.Y/2))
+		draw.NearestNeighbor.Scale(dst, image.Rect(0, 0, 16, 16), img, img.Bounds(), draw.Over, nil)
+
+		wBmp, err = walk.NewBitmapFromImageForDPI(dst, 96)
+		if err != nil {
+			err = fmt.Errorf("new bitmap from image for dpi: %s", err)
+			return defaultImg
+		}
+		return wBmp
+	}
+
+	if ext == ".png" {
+		img, err = png.Decode(bytes.NewReader(data))
+		if err != nil {
+			err = fmt.Errorf("png.Decode %s: %w", name, err)
+			return defaultImg
+		}
+		dst := image.NewRGBA(image.Rect(0, 0, img.Bounds().Max.X/2, img.Bounds().Max.Y/2))
+		draw.NearestNeighbor.Scale(dst, image.Rect(0, 0, 16, 16), img, img.Bounds(), draw.Over, nil)
+
+		wBmp, err = walk.NewBitmapFromImageForDPI(dst, 96)
+		if err != nil {
+			err = fmt.Errorf("new bitmap from image for dpi: %s", err)
+			return defaultImg
+		}
+		return wBmp
+	}
+	if ext == ".bmp" {
+		buf := new(bytes.Buffer)
+		_, err = buf.ReadFrom(bytes.NewReader(data))
+		if err != nil {
+			err = fmt.Errorf("buf read from: %w", err)
+			return defaultImg
+		}
+		var img image.Image
+		if string(buf.Bytes()[0:3]) == "DDS" {
+			img, err = dds.Decode(bytes.NewReader(data))
+			if err != nil {
+				err = fmt.Errorf("dds.Decode %s: %w", name, err)
+				return defaultImg
+			}
+		} else {
+			img, err = bmp.Decode(bytes.NewReader(data))
+			if err != nil {
+				err = fmt.Errorf("bmp.Decode %s: %w", name, err)
+				return defaultImg
+			}
+		}
+		dst := image.NewRGBA(image.Rect(0, 0, img.Bounds().Max.X/2, img.Bounds().Max.Y/2))
+		draw.NearestNeighbor.Scale(dst, image.Rect(0, 0, 16, 16), img, img.Bounds(), draw.Over, nil)
+
+		wBmp, err = walk.NewBitmapFromImageForDPI(dst, 96)
+		if err != nil {
+			err = fmt.Errorf("new bitmap from image for dpi: %w", err)
+			return defaultImg
+		}
+		return wBmp
+	}
+
+	return defaultImg
 }

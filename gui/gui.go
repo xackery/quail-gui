@@ -242,9 +242,20 @@ func NewMainWindow(ctx context.Context, cancel context.CancelFunc, cfg *config.C
 	gui.table.ItemActivated().Attach(func() {
 		fmt.Printf("Activated: %v\n", gui.table.SelectedIndexes())
 	})
+
+	gui.table.SetCellStyler(&fileViewStyler{})
 	gui.table.SetMinMaxSize(walk.Size{Width: 250, Height: 0}, walk.Size{Width: 0, Height: 0})
 
 	col := walk.NewTableViewColumn()
+	col.SetDataMember(" ")
+	col.SetName(" ")
+	col.SetWidth(30)
+	err = gui.table.Columns().Add(col)
+	if err != nil {
+		return fmt.Errorf("add column: %w", err)
+	}
+
+	col = walk.NewTableViewColumn()
 	col.SetDataMember("Name")
 	col.SetName("Name")
 	col.SetWidth(160)

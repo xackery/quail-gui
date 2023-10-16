@@ -1,5 +1,9 @@
+github.com/biessek/golang-ico v0.0.0-20180326222316-d348d9ea4670 h1:FQPKKjDhzG0T4ew6dm6MGrXb4PRAi8ZmTuYuxcF62BM=
+github.com/biessek/golang-ico v0.0.0-20180326222316-d348d9ea4670/go.mod h1:iRWAFbKXMMkVQyxZ1PfGlkBr1TjATx1zy2MRprV7A3Q=
 github.com/dblohm7/wingoes v0.0.0-20230426155039-111c8c3b57c8 h1:vtIE3GO4hKplR58aTRx3yLPqAbfWyoyYrE8PXUv0Prw=
 github.com/dblohm7/wingoes v0.0.0-20230426155039-111c8c3b57c8/go.mod h1:6NCrWM5jRefaG7iN0iMShPalLsljHWBh9v1zxM2f8Xs=
+github.com/jsummers/gobmp v0.0.0-20230614200233-a9de23ed2e25 h1:YLvr1eE6cdCqjOe972w/cYF+FjW34v27+9Vo5106B4M=
+github.com/jsummers/gobmp v0.0.0-20230614200233-a9de23ed2e25/go.mod h1:kLgvv7o6UM+0QSf0QjAse3wReFDsb9qbZJdfexWlrQw=
 github.com/malashin/dds v0.0.0-20190511100755-ab62708f5fe5 h1:x3VlguQTqTNwxZnEKvvXG7Eg+dTHkeUoDgtVTVNZYNw=
 github.com/malashin/dds v0.0.0-20190511100755-ab62708f5fe5/go.mod h1:i6qKfS0pgqGQldC1cODcAEys1ffmvRttrdGEWBjxnyo=
 github.com/sergeymakinen/go-bmp v1.0.0-beta.1 h1:6f85uJkYkOrDE6nVI+G1CmS7qa89KfeDyXe4YDIRWfE=

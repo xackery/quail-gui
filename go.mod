@@ -3,6 +3,7 @@ module github.com/xackery/quail-gui
 go 1.21
 
 require (
+	github.com/biessek/golang-ico v0.0.0-20180326222316-d348d9ea4670
 	github.com/malashin/dds v0.0.0-20190511100755-ab62708f5fe5
 	github.com/xackery/quail v0.0.0-20231001085711-52408a85ab4c
 	github.com/xackery/wlk v0.0.1
@@ -11,6 +12,7 @@ require (
 
 require (
 	github.com/dblohm7/wingoes v0.0.0-20230426155039-111c8c3b57c8 // indirect
+	github.com/jsummers/gobmp v0.0.0-20230614200233-a9de23ed2e25 // indirect
 	github.com/sergeymakinen/go-bmp v1.0.0-beta.1 // indirect
 	github.com/xackery/colors v1.0.1 // indirect
 	github.com/xackery/encdec v0.0.8 // indirect
