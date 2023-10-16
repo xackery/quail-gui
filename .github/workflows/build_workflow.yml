@@ -35,6 +35,7 @@ jobs:
       run: |
         mkdir -p rof
         cd rof
+        touch eqhost.txt
         wget --no-verbose https://github.com/xackery/filelistbuilder/releases/latest/download/filelistbuilder-linux-x64
         chmod +x filelistbuilder-linux-x64
         ./filelistbuilder-linux-x64 "rof" "dummy" "../bin/quail-gui.exe"

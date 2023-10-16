@@ -2,12 +2,15 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
+	"time"
 
+	"github.com/malashin/dds"
 	"github.com/xackery/quail-gui/gui"
 	"github.com/xackery/quail-gui/slog"
 	"github.com/xackery/quail/common"
@@ -19,6 +22,7 @@ import (
 	"github.com/xackery/quail/model/metadata/zon"
 	"github.com/xackery/quail/pfs"
 	"github.com/xackery/quail/quail"
+	"github.com/xackery/wlk/walk"
 )
 
 func (c *Client) inspect(file string) (interface{}, error) {
@@ -56,6 +60,32 @@ func (c *Client) inspectFile(pfs *pfs.PFS, path string, file string) (interface{
 		if !strings.EqualFold(fe.Name(), file) {
 			continue
 		}
+		totalSize := len(fe.Data())
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		go func() {
+			totalMB := float64(totalSize) / 1024 / 1024
+			if totalMB < 1 {
+				return
+			}
+
+			gui.SetProgress(1)
+			defer gui.SetProgress(0)
+
+			// set sleep 100ms for every mb
+			sleep := time.Duration(totalMB) * 100 * time.Millisecond
+
+			// every 100ms set progress 10
+			for i := 0; i < 10; i++ {
+				time.Sleep(sleep)
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
+				gui.SetProgress(10 * (i + 1))
+			}
+		}()
 		return c.inspectContent(file, bytes.NewReader(fe.Data()))
 	}
 	return nil, fmt.Errorf("%s not found in %s", file, filepath.Base(path))
@@ -64,6 +94,7 @@ func (c *Client) inspectFile(pfs *pfs.PFS, path string, file string) (interface{
 func (c *Client) inspectContent(file string, data *bytes.Reader) (interface{}, error) {
 	var err error
 	ext := strings.ToLower(filepath.Ext(file))
+	gui.SetImage(nil)
 	switch ext {
 	case ".mds":
 		model := &common.Model{
@@ -123,9 +154,21 @@ func (c *Client) inspectContent(file string, data *bytes.Reader) (interface{}, e
 			return nil, fmt.Errorf("lay.Decode %s: %w", file, err)
 		}
 		return model.Layers, nil
+	case ".dds":
+		img, err := dds.Decode(data)
+		if err != nil {
+			return nil, fmt.Errorf("dds.Decode %s: %w", file, err)
+		}
+		bmp, err := walk.NewBitmapFromImageForDPI(img, 96)
+		if err != nil {
+			return nil, fmt.Errorf("new bitmap from image for dpi: %w", err)
+		}
+		gui.SetImage(bmp)
+		return nil, nil
 	default:
 		return nil, fmt.Errorf("unknown file type %s", ext)
 	}
+
 }
 
 func (c *Client) reflectTraversal(inspected interface{}, section string, nest int, index int) {
