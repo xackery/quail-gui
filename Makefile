@@ -1,5 +1,5 @@
 NAME ?= quail-gui
-VERSION ?= 0.0.9
+VERSION ?= 0.0.2
 
 # CICD triggers this
 .PHONY: set-variable
@@ -49,4 +49,4 @@ build-windows:
 	go install github.com/akavel/rsrc@latest
 	rsrc -ico quail-gui.ico -manifest quail-gui.exe.manifest
 	cp quail-gui.exe.manifest bin/
-	GOOS=windows GOARCH=amd64 go build -buildmode=pie -ldflags="-X main.Version=${VERSION} -X main.PatcherUrl=${PATCHER_URL} -s -w -H=windowsgui" -o bin/${NAME}.exe
+	GOOS=windows GOARCH=amd64 go build -buildmode=pie -ldflags="-X main.Version=${VERSION} -s -w -H=windowsgui" -o bin/${NAME}.exe

@@ -33,6 +33,7 @@ jobs:
 
     - name: Build FileList
       run: |
+        mkdir -p rof
         cd rof
         wget --no-verbose https://github.com/xackery/filelistbuilder/releases/latest/download/filelistbuilder-linux-x64
         chmod +x filelistbuilder-linux-x64
