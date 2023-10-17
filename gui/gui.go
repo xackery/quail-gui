@@ -52,9 +52,14 @@ func NewMainWindow(ctx context.Context, cancel context.CancelFunc, cfg *config.C
 	}
 
 	var err error
-
+	fvs := &fileViewStyler{}
+	gui.fileView = NewFileView()
 	cmw := cpl.MainWindow{
-		Name: "quail-gui",
+		Title:   "quail-gui v" + version,
+		MinSize: cpl.Size{Width: 405, Height: 371},
+		Layout:  cpl.VBox{},
+		Visible: false,
+		Name:    "quail-gui",
 		MenuItems: []cpl.MenuItem{
 			cpl.Menu{
 				Text: "&Archive",
@@ -196,8 +201,63 @@ func NewMainWindow(ctx context.Context, cancel context.CancelFunc, cfg *config.C
 				},
 			},
 		},
+		Children: []cpl.Widget{
+			cpl.HSplitter{Children: []cpl.Widget{
+				cpl.VSplitter{Children: []cpl.Widget{
+					cpl.Label{Text: "Files"},
+					cpl.TableView{
+						AssignTo:              &gui.table,
+						Name:                  "tableView",
+						AlternatingRowBG:      true,
+						ColumnsOrderable:      true,
+						MultiSelection:        false,
+						OnCurrentIndexChanged: onTableSelect,
+						StyleCell:             fvs.StyleCell,
+						MinSize:               cpl.Size{Width: 250, Height: 0},
+						Columns: []cpl.TableViewColumn{
+							{Name: " ", Width: 30},
+							{Name: "Name", Width: 160},
+							{Name: "Ext", Width: 40},
+							{Name: "Size", Width: 80},
+						},
+					},
+				}},
+				cpl.VSplitter{Children: []cpl.Widget{
+					//cpl.Label{Text: "Image"},
+					cpl.ImageView{
+						AssignTo: &gui.image,
+						Visible:  false,
+						Mode:     cpl.ImageViewModeZoom,
+					},
+				}},
+				cpl.VSplitter{Children: []cpl.Widget{
+					cpl.Label{Text: "Category", AssignTo: &gui.sectionLabel},
+					cpl.ListBox{
+						AssignTo:              &gui.sectionList,
+						Name:                  "Section",
+						OnCurrentIndexChanged: onSectionListSelect,
+						MinSize:               cpl.Size{Width: 200, Height: 0},
+					},
+				}},
+				cpl.VSplitter{Children: []cpl.Widget{
+					cpl.Label{Text: "Contents", AssignTo: &gui.contentsLabel},
+					cpl.TextEdit{
+						AssignTo:   &gui.contents,
+						ReadOnly:   true,
+						Enabled:    false,
+						VScroll:    true,
+						Background: cpl.SolidColorBrush{Color: walk.RGB(255, 255, 255)},
+					},
+				}},
+				cpl.ProgressBar{
+					AssignTo: &gui.progress,
+					Visible:  false,
+					MaxValue: 100,
+					MinValue: 0,
+				},
+			}},
+		},
 		AssignTo: &gui.mw,
-		Visible:  false,
 		StatusBarItems: []cpl.StatusBarItem{
 			{
 				AssignTo: &gui.statusBar,
@@ -213,145 +273,7 @@ func NewMainWindow(ctx context.Context, cancel context.CancelFunc, cfg *config.C
 		return fmt.Errorf("create main window: %w", err)
 	}
 
-	gui.mw.SetTitle("quail-gui v" + version)
-	gui.mw.SetMinMaxSize(walk.Size{Width: 405, Height: 371}, walk.Size{Width: 0, Height: 0})
-	gui.mw.SetLayout(walk.NewVBoxLayout())
-	gui.mw.SetVisible(false)
-
-	gui.log, err = walk.NewTextEdit(gui.mw)
-	if err != nil {
-		return fmt.Errorf("new text edit: %w", err)
-	}
-	gui.log.SetReadOnly(true)
-	gui.log.SetVisible(false)
-	gui.log.SetMinMaxSize(walk.Size{Width: 400, Height: 400}, walk.Size{Width: 400, Height: 400})
-	slog.AddHandler(Logf)
-	gui.mw.Children().Add(gui.log)
-
-	gui.table, err = walk.NewTableView(gui.mw)
-	if err != nil {
-		return fmt.Errorf("new table view: %w", err)
-	}
-	gui.fileView = NewFileView()
 	gui.table.SetModel(gui.fileView)
-	gui.table.SetName("tableView")
-	gui.table.SetAlternatingRowBG(true)
-	gui.table.SetColumnsOrderable(true)
-	gui.table.SetMultiSelection(false)
-	gui.table.CurrentIndexChanged().Attach(onTableSelect)
-	gui.table.ItemActivated().Attach(func() {
-		fmt.Printf("Activated: %v\n", gui.table.SelectedIndexes())
-	})
-
-	gui.table.SetCellStyler(&fileViewStyler{})
-	gui.table.SetMinMaxSize(walk.Size{Width: 250, Height: 0}, walk.Size{Width: 0, Height: 0})
-
-	col := walk.NewTableViewColumn()
-	col.SetDataMember(" ")
-	col.SetName(" ")
-	col.SetWidth(30)
-	err = gui.table.Columns().Add(col)
-	if err != nil {
-		return fmt.Errorf("add column: %w", err)
-	}
-
-	col = walk.NewTableViewColumn()
-	col.SetDataMember("Name")
-	col.SetName("Name")
-	col.SetWidth(160)
-	err = gui.table.Columns().Add(col)
-	if err != nil {
-		return fmt.Errorf("add column: %w", err)
-	}
-
-	col = walk.NewTableViewColumn()
-	col.SetDataMember("Ext")
-	col.SetName("Ext")
-	col.SetWidth(40)
-	err = gui.table.Columns().Add(col)
-	if err != nil {
-		return fmt.Errorf("add column: %w", err)
-	}
-
-	col = walk.NewTableViewColumn()
-	col.SetDataMember("Size")
-	col.SetName("Size")
-	col.SetWidth(80)
-	err = gui.table.Columns().Add(col)
-	if err != nil {
-		return fmt.Errorf("add column: %w", err)
-	}
-
-	gui.sectionList, err = walk.NewListBox(gui.mw)
-	if err != nil {
-		return fmt.Errorf("new list box: %w", err)
-	}
-	gui.sectionList.SetName("Section")
-	gui.sectionList.ItemActivated().Attach(onSectionListSelect)
-	gui.sectionList.CurrentIndexChanged().Attach(onSectionListSelect)
-	gui.sectionList.SetWidth(200)
-
-	gui.contents, err = walk.NewTextEdit(gui.mw)
-	if err != nil {
-		return fmt.Errorf("new text edit: %w", err)
-	}
-	gui.contents.SetReadOnly(true)
-	gui.contents.SetEnabled(false)
-
-	comp, err := walk.NewComposite(gui.mw)
-	if err != nil {
-		return fmt.Errorf("new composite: %w", err)
-	}
-	comp.SetLayout(walk.NewHBoxLayout())
-
-	entry, err := walk.NewComposite(gui.mw)
-	if err != nil {
-		return fmt.Errorf("new composite: %w", err)
-	}
-	entry.SetLayout(walk.NewVBoxLayout())
-
-	entry.Children().Add(newLabel("Files"))
-	entry.Children().Add(gui.table)
-	comp.Children().Add(entry)
-
-	entry, err = walk.NewComposite(gui.mw)
-	if err != nil {
-		return fmt.Errorf("new composite: %w", err)
-	}
-	entry.SetLayout(walk.NewVBoxLayout())
-	gui.sectionLabel = newLabel("Category")
-	entry.Children().Add(gui.sectionLabel)
-	entry.Children().Add(gui.sectionList)
-	comp.Children().Add(entry)
-
-	gui.image, err = walk.NewImageView(gui.mw)
-	if err != nil {
-		return fmt.Errorf("new image view: %w", err)
-	}
-	gui.image.SetVisible(false)
-
-	entry, err = walk.NewComposite(gui.mw)
-	if err != nil {
-		return fmt.Errorf("new composite: %w", err)
-	}
-	entry.SetLayout(walk.NewVBoxLayout())
-	gui.contentsLabel = newLabel("Contents")
-	entry.Children().Add(gui.contentsLabel)
-	entry.Children().Add(gui.contents)
-	entry.Children().Add(gui.image)
-	comp.Children().Add(entry)
-
-	gui.progress, err = walk.NewProgressBar(gui.mw)
-	if err != nil {
-		return fmt.Errorf("new progress bar: %w", err)
-	}
-
-	//gui.progress.SetMinMaxSize(walk.Size{Width: 400, Height: 39}, walk.Size{Width: 400, Height: 39})
-	gui.progress.SetValue(0)
-	//gui.progress.SetMinMaxSize(walk.Size{Width: 400, Height: 39}, walk.Size{Width: 400, Height: 39})
-
-	gui.mw.Children().Add(gui.progress)
-	gui.mw.SetSize(walk.Size{Width: 405, Height: 371})
 
 	return nil
 }
@@ -614,9 +536,20 @@ func onSectionListSelect() {
 	//get current sectionlist
 	name := gui.sectionList.Model().([]string)[gui.sectionList.CurrentIndex()]
 
+	if strings.Contains(name, "(") {
+		name = name[0 : strings.Index(name, "(")-1]
+	}
+
+	fmt.Println("name", name)
 	gui.sectionList.SetEnabled(true)
 	gui.contents.SetEnabled(true)
 	gui.contents.SetText(gui.sections[name].Content)
+	gui.image.SetVisible(false)
+	gui.image.SetImage(nil)
+	gui.contents.SetVisible(true)
+	gui.sectionList.SetVisible(true)
+	gui.sectionLabel.SetVisible(true)
+	gui.contentsLabel.SetVisible(true)
 	slog.Printf("Selected %s\n", name)
 }
 

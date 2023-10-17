@@ -20,6 +20,7 @@ import (
 	"github.com/xackery/quail/common"
 	"github.com/xackery/quail/model/mesh/mds"
 	"github.com/xackery/quail/model/mesh/mod"
+	"github.com/xackery/quail/model/metadata/ani"
 	"github.com/xackery/quail/model/metadata/lay"
 	"github.com/xackery/quail/model/metadata/prt"
 	"github.com/xackery/quail/model/metadata/pts"
@@ -30,6 +31,10 @@ import (
 	"golang.org/x/image/bmp"
 	"golang.org/x/image/draw"
 )
+
+type layerWrapper struct {
+	Layers []*common.Layer
+}
 
 var (
 
@@ -217,13 +222,20 @@ func (c *Client) inspectContent(file string, data *bytes.Reader) (interface{}, e
 			return nil, fmt.Errorf("wld.Decode %s: %w", file, err)
 		}
 		return models, nil
+	case ".ani":
+		animation := &common.Animation{}
+		err = ani.Decode(animation, data)
+		if err != nil {
+			return nil, fmt.Errorf("ani.Decode %s: %w", file, err)
+		}
+		return animation, nil
 	case ".lay":
 		model := &common.Model{}
 		err := lay.Decode(model, data)
 		if err != nil {
 			return nil, fmt.Errorf("lay.Decode %s: %w", file, err)
 		}
-		return model.Layers, nil
+		return &layerWrapper{Layers: model.Layers}, nil
 	case ".dds":
 		img, err := dds.Decode(data)
 		if err != nil {
@@ -278,6 +290,7 @@ func (c *Client) inspectContent(file string, data *bytes.Reader) (interface{}, e
 }
 
 func (c *Client) reflectTraversal(inspected interface{}, section string, nest int, index int) {
+
 	v := reflect.ValueOf(inspected)
 	tv := v.Type()
 
@@ -287,9 +300,13 @@ func (c *Client) reflectTraversal(inspected interface{}, section string, nest in
 	}
 
 	if v.Kind() == reflect.Slice {
-
+		// get name of slice property
+		if nest == 0 {
+			slog.Printf("Changing section to %s with len %d\n", tv.Name(), v.Len())
+			//	section = tv.Name()
+		}
 		if v.Len() == 0 {
-			c.sections[section].Content += fmt.Sprintf("%s%s: (Empty)\n", strings.Repeat("  ", nest), tv.Name())
+			c.sections[section].Content += fmt.Sprintf("%s- %s: (Empty)\r\n", strings.Repeat("  ", nest), tv.Name())
 			//slog.Printf("%s%s (Empty)\n", strings.Repeat("  ", nest), tv.Name())
 			return
 		}
@@ -313,11 +330,6 @@ func (c *Client) reflectTraversal(inspected interface{}, section string, nest in
 			continue
 		}
 
-		indexStr := ""
-		if index >= 0 {
-			indexStr = fmt.Sprintf("[%d]", index)
-		}
-
 		// is it a slice?
 		if v.Field(i).Kind() == reflect.Slice {
 			if nest == 0 {
@@ -333,12 +345,12 @@ func (c *Client) reflectTraversal(inspected interface{}, section string, nest in
 			}
 			s := v.Field(i)
 			if s.Len() == 0 {
-				c.sections[section].Content += fmt.Sprintf("%s%s %s: (Empty)\n", strings.Repeat("  ", nest), indexStr, tv.Field(i).Name)
+				c.sections[section].Content += fmt.Sprintf("%s- %s: (Empty)\r\n", strings.Repeat("  ", nest), tv.Field(i).Name)
 				//slog.Printf("%s%s %s: (Empty)\n", strings.Repeat("  ", nest), indexStr, tv.Field(i).Name)
 				continue
 			}
 			c.sections[section].Count = s.Len()
-			c.sections[section].Content += fmt.Sprintf("%s%s %s:\n", strings.Repeat("  ", nest), indexStr, tv.Field(i).Name)
+			c.sections[section].Content += fmt.Sprintf("%s %s\r\n", strings.Repeat("  ", nest), tv.Field(i).Name)
 			//slog.Printf("%s%s %s:", strings.Repeat("  ", nest), indexStr, tv.Field(i).Name)
 
 			for j := 0; j < s.Len(); j++ {
@@ -366,7 +378,7 @@ func (c *Client) reflectTraversal(inspected interface{}, section string, nest in
 		if tv.Field(i).Name == "MaterialName" {
 			continue
 		}
-		c.sections[section].Content += fmt.Sprintf("%s%s %s: %v\n", strings.Repeat("  ", nest), indexStr, tv.Field(i).Name, v.Field(i).Interface())
+		c.sections[section].Content += fmt.Sprintf("%s %s: %v\r\n", strings.Repeat("  ", nest), tv.Field(i).Name, v.Field(i).Interface())
 		//slog.Printf("%s%s %s: %v\n", strings.Repeat("  ", nest), indexStr, tv.Field(i).Name, v.Field(i).Interface())
 	}
 }

@@ -87,7 +87,17 @@ func (m *FileView) Sort(col int, order walk.SortOrder) error {
 		case -1:
 			return false
 		case 0:
-			return false
+			/* if a.Ext == ".dds" {
+				return true
+			}
+			if a.Ext == ".bmp" {
+				return true
+			}
+			if a.Ext == ".png" {
+				return true
+			} */
+
+			return c(a.Ext < b.Ext)
 		case 1:
 			return c(a.Name < b.Name)
 		case 2:
