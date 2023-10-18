@@ -1,5 +1,5 @@
 NAME ?= quail-gui
-VERSION ?= 0.0.3
+VERSION ?= 0.0.4
 
 # CICD triggers this
 .PHONY: set-variable
