@@ -95,10 +95,11 @@ func (c *Client) Open(path string, file string) error {
 		return fmt.Errorf("inspect requires a target file, directory provided")
 	}
 
+	c.sections = make(map[string]*gui.Section)
 	if path != c.currentPath && file == "" {
+		ext := strings.ToLower(filepath.Ext(path))
 		isValidExt := false
 		exts := []string{".eqg", ".s3d", ".pfs", ".pak"}
-		ext := strings.ToLower(filepath.Ext(path))
 		for _, ext := range exts {
 			if strings.HasSuffix(path, ext) {
 				isValidExt = true
@@ -113,6 +114,21 @@ func (c *Client) Open(path string, file string) error {
 			}
 		}
 	}
+	fileExt := strings.ToLower(filepath.Ext(file))
+	if fileExt == ".bat" {
+		data, err := c.pfs.File(file)
+		if err != nil {
+			return fmt.Errorf("file %s: %w", file, err)
+		}
+		c.sections[".Info"] = &gui.Section{
+			Name:    ".Info",
+			Content: string(data),
+			Icon:    generateIcon(file, data),
+		}
+
+		gui.SetSections(c.sections)
+		return nil
+	}
 	c.currentPath = path
 	c.fileName = file
 
@@ -125,7 +141,6 @@ func (c *Client) Open(path string, file string) error {
 	}
 
 	gui.SetTitle(fmt.Sprintf("Archive: %s   quail-gui v%s", filepath.Base(path), c.version))
-	c.sections = make(map[string]*gui.Section)
 	c.sections[".Info"] = &gui.Section{
 		Name: ".Info",
 	}

@@ -37,40 +37,28 @@ type layerWrapper struct {
 }
 
 var (
-
 	//go:embed ico/unk.ico
 	unkIco []byte
-	unkImg *walk.Bitmap
 	//go:embed ico/ani.ico
 	aniIco []byte
-	aniImg *walk.Bitmap
 	//go:embed ico/mds.ico
 	mdsIco []byte
-	mdsImg *walk.Bitmap
 	//go:embed ico/lay.ico
 	layIco []byte
-	layImg *walk.Bitmap
 	//go:embed ico/mod.ico
 	modIco []byte
-	modImg *walk.Bitmap
-
 	//go:embed ico/pts.ico
 	ptsIco []byte
-	ptsImg *walk.Bitmap
-
 	//go:embed ico/prt.ico
 	prtIco []byte
-	prtImg *walk.Bitmap
+	//go:embed ico/zon.ico
+	zonIco []byte
+	//go:embed ico/ter.ico
+	terIco []byte
+	//go:embed ico/lit.ico
+	litIco []byte
 
-	icos = map[string]*walk.Bitmap{
-		".ani": aniImg,
-		".mds": mdsImg,
-		".lay": layImg,
-		".mod": modImg,
-		".unk": unkImg,
-		".pts": ptsImg,
-		".prt": prtImg,
-	}
+	icos map[string]*walk.Bitmap
 )
 
 func init() {
@@ -82,7 +70,11 @@ func init() {
 		".unk": unkIco,
 		".pts": ptsIco,
 		".prt": prtIco,
+		".zon": zonIco,
+		".ter": terIco,
+		".lit": litIco,
 	}
+	icos = make(map[string]*walk.Bitmap)
 	for ext, icoData := range icoMap {
 		img, err := ico.Decode(bytes.NewReader(icoData))
 		if err != nil {
@@ -96,7 +88,6 @@ func init() {
 		}
 		icos[ext] = bmp
 	}
-
 }
 
 func (c *Client) inspect(file string) (interface{}, error) {
@@ -109,12 +100,16 @@ func (c *Client) inspect(file string) (interface{}, error) {
 	if len(file) < 2 {
 		entries := []*gui.FileViewEntry{}
 		for _, fe := range c.pfs.Files() {
-			entries = append(entries, &gui.FileViewEntry{
-				Icon: generateIcon(fe.Name(), fe.Data()),
-				Name: fe.Name(),
-				Ext:  strings.ToLower(filepath.Ext(fe.Name())),
-				Size: generateSize(len(fe.Data())),
-			})
+			ext := strings.ToLower(filepath.Ext(fe.Name()))
+			fve := &gui.FileViewEntry{
+				Icon:    generateIcon(fe.Name(), fe.Data()),
+				Name:    fe.Name(),
+				Ext:     ext,
+				Size:    generateSize(len(fe.Data())),
+				RawSize: len(fe.Data()),
+			}
+
+			entries = append(entries, fve)
 		}
 		gui.SetFileViewItems(entries)
 		return c.pfs, nil
@@ -301,10 +296,6 @@ func (c *Client) reflectTraversal(inspected interface{}, section string, nest in
 
 	if v.Kind() == reflect.Slice {
 		// get name of slice property
-		if nest == 0 {
-			slog.Printf("Changing section to %s with len %d\n", tv.Name(), v.Len())
-			//	section = tv.Name()
-		}
 		if v.Len() == 0 {
 			c.sections[section].Content += fmt.Sprintf("%s- %s: (Empty)\r\n", strings.Repeat("  ", nest), tv.Name())
 			//slog.Printf("%s%s (Empty)\n", strings.Repeat("  ", nest), tv.Name())
@@ -333,7 +324,6 @@ func (c *Client) reflectTraversal(inspected interface{}, section string, nest in
 		// is it a slice?
 		if v.Field(i).Kind() == reflect.Slice {
 			if nest == 0 {
-				slog.Printf("Changing section to %s\n", tv.Field(i).Name)
 				section = tv.Field(i).Name
 				_, ok := c.sections[section]
 				if !ok {
@@ -406,20 +396,20 @@ func generateSize(in int) string {
 
 func generateIcon(name string, data []byte) *walk.Bitmap {
 	var err error
+
+	ext := strings.ToLower(filepath.Ext(name))
 	defer func() {
 		if err != nil {
 			slog.Printf("GenerateIcon: %s", err)
 			return
 		}
 	}()
-
-	defaultImg := unkImg
-
-	ext := strings.ToLower(filepath.Ext(name))
 	ico, ok := icos[ext]
-	if ok && ext != "unk" {
+	if ok && ext != ".unk" {
 		return ico
 	}
+
+	unkImg := icos[".unk"]
 
 	var img image.Image
 	var wBmp *walk.Bitmap
@@ -427,7 +417,7 @@ func generateIcon(name string, data []byte) *walk.Bitmap {
 		img, err = dds.Decode(bytes.NewReader(data))
 		if err != nil {
 			err = fmt.Errorf("dds.Decode %s: %w", name, err)
-			return defaultImg
+			return unkImg
 		}
 		dst := image.NewRGBA(image.Rect(0, 0, img.Bounds().Max.X/2, img.Bounds().Max.Y/2))
 		draw.NearestNeighbor.Scale(dst, image.Rect(0, 0, 16, 16), img, img.Bounds(), draw.Over, nil)
@@ -435,7 +425,7 @@ func generateIcon(name string, data []byte) *walk.Bitmap {
 		wBmp, err = walk.NewBitmapFromImageForDPI(dst, 96)
 		if err != nil {
 			err = fmt.Errorf("new bitmap from image for dpi: %s", err)
-			return defaultImg
+			return unkImg
 		}
 		return wBmp
 	}
@@ -444,7 +434,7 @@ func generateIcon(name string, data []byte) *walk.Bitmap {
 		img, err = png.Decode(bytes.NewReader(data))
 		if err != nil {
 			err = fmt.Errorf("png.Decode %s: %w", name, err)
-			return defaultImg
+			return unkImg
 		}
 		dst := image.NewRGBA(image.Rect(0, 0, img.Bounds().Max.X/2, img.Bounds().Max.Y/2))
 		draw.NearestNeighbor.Scale(dst, image.Rect(0, 0, 16, 16), img, img.Bounds(), draw.Over, nil)
@@ -452,7 +442,7 @@ func generateIcon(name string, data []byte) *walk.Bitmap {
 		wBmp, err = walk.NewBitmapFromImageForDPI(dst, 96)
 		if err != nil {
 			err = fmt.Errorf("new bitmap from image for dpi: %s", err)
-			return defaultImg
+			return unkImg
 		}
 		return wBmp
 	}
@@ -461,20 +451,20 @@ func generateIcon(name string, data []byte) *walk.Bitmap {
 		_, err = buf.ReadFrom(bytes.NewReader(data))
 		if err != nil {
 			err = fmt.Errorf("buf read from: %w", err)
-			return defaultImg
+			return unkImg
 		}
 		var img image.Image
 		if string(buf.Bytes()[0:3]) == "DDS" {
 			img, err = dds.Decode(bytes.NewReader(data))
 			if err != nil {
 				err = fmt.Errorf("dds.Decode %s: %w", name, err)
-				return defaultImg
+				return unkImg
 			}
 		} else {
 			img, err = bmp.Decode(bytes.NewReader(data))
 			if err != nil {
 				err = fmt.Errorf("bmp.Decode %s: %w", name, err)
-				return defaultImg
+				return unkImg
 			}
 		}
 		dst := image.NewRGBA(image.Rect(0, 0, img.Bounds().Max.X/2, img.Bounds().Max.Y/2))
@@ -483,10 +473,12 @@ func generateIcon(name string, data []byte) *walk.Bitmap {
 		wBmp, err = walk.NewBitmapFromImageForDPI(dst, 96)
 		if err != nil {
 			err = fmt.Errorf("new bitmap from image for dpi: %w", err)
-			return defaultImg
+			return unkImg
 		}
 		return wBmp
 	}
 
-	return defaultImg
+	fmt.Println("unk ext", ext, unkImg)
+
+	return unkImg
 }

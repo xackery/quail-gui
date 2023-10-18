@@ -12,6 +12,7 @@ type FileViewEntry struct {
 	Name    string
 	Ext     string
 	Size    string
+	RawSize int
 	checked bool
 }
 
@@ -43,12 +44,10 @@ func (m *FileView) Value(row, col int) interface{} {
 	case -1:
 		return nil
 	case 0:
-		return ""
-	case 1:
 		return item.Name
-	case 2:
+	case 1:
 		return item.Ext
-	case 3:
+	case 2:
 		return item.Size
 	}
 
@@ -87,23 +86,11 @@ func (m *FileView) Sort(col int, order walk.SortOrder) error {
 		case -1:
 			return false
 		case 0:
-			/* if a.Ext == ".dds" {
-				return true
-			}
-			if a.Ext == ".bmp" {
-				return true
-			}
-			if a.Ext == ".png" {
-				return true
-			} */
-
-			return c(a.Ext < b.Ext)
-		case 1:
 			return c(a.Name < b.Name)
-		case 2:
+		case 1:
 			return c(a.Ext < b.Ext)
-		case 3:
-			return c(a.Size < b.Size)
+		case 2:
+			return c(a.RawSize < b.RawSize)
 		}
 
 		slog.Printf("invalid sort col: %d", m.sortColumn)

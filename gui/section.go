@@ -6,5 +6,5 @@ type Section struct {
 	Name    string
 	Count   int
 	Content string
-	Icon    *walk.Image
+	Icon    walk.Image
 }

@@ -211,11 +211,10 @@ func NewMainWindow(ctx context.Context, cancel context.CancelFunc, cfg *config.C
 						AlternatingRowBG:      true,
 						ColumnsOrderable:      true,
 						MultiSelection:        false,
-						OnCurrentIndexChanged: onTableSelect,
+						OnCurrentIndexChanged: onFileViewSelect,
 						StyleCell:             fvs.StyleCell,
 						MinSize:               cpl.Size{Width: 250, Height: 0},
 						Columns: []cpl.TableViewColumn{
-							{Name: " ", Width: 30},
 							{Name: "Name", Width: 160},
 							{Name: "Ext", Width: 40},
 							{Name: "Size", Width: 80},
@@ -483,6 +482,10 @@ func SetFileViewItems(items []*FileViewEntry) {
 	}
 	gui.fileEntries = items
 	gui.fileView.SetItems(items)
+	if len(items) > 0 {
+		gui.table.SetCurrentIndex(0)
+		onFileViewSelect()
+	}
 }
 
 func SetSections(sections map[string]*Section) {
@@ -496,11 +499,14 @@ func SetSections(sections map[string]*Section) {
 	}
 	sort.Strings(sectionList)
 	gui.sectionList.SetModel(sectionList)
+	if len(sectionList) > 0 {
+		gui.sectionList.SetCurrentIndex(0)
+		onSectionListSelect()
+	}
 }
 
-func onTableSelect() {
+func onFileViewSelect() {
 	if len(gui.fileEntries) == 0 {
-		slog.Printf("No files to open")
 		return
 	}
 
@@ -510,7 +516,7 @@ func onTableSelect() {
 	}
 	SetProgress(0)
 	name := gui.fileEntries[gui.table.CurrentIndex()].Name
-	slog.Printf("Selected %s\n", name)
+	slog.Printf("FileView Selected %s\n", name)
 	gui.exportSelected.SetText("&Export " + name)
 	for _, fn := range gui.openHandler {
 		err := fn("", name)
@@ -550,14 +556,16 @@ func onSectionListSelect() {
 	gui.sectionList.SetVisible(true)
 	gui.sectionLabel.SetVisible(true)
 	gui.contentsLabel.SetVisible(true)
-	slog.Printf("Selected %s\n", name)
+	slog.Printf("Section Selected %s\n", name)
 }
 
 func SetImage(image walk.Image) {
 	if gui == nil {
 		return
 	}
+	fmt.Println("image change", image)
 	if image == nil {
+		gui.image.SetImage(nil)
 		gui.image.SetVisible(false)
 		gui.contents.SetVisible(true)
 		gui.sectionList.SetVisible(true)
