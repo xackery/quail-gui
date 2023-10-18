@@ -26,7 +26,6 @@ import (
 	"github.com/xackery/quail/model/metadata/pts"
 	"github.com/xackery/quail/model/metadata/zon"
 	"github.com/xackery/quail/pfs"
-	"github.com/xackery/quail/quail"
 	"github.com/xackery/wlk/walk"
 	"golang.org/x/image/bmp"
 	"golang.org/x/image/draw"
@@ -57,6 +56,8 @@ var (
 	terIco []byte
 	//go:embed ico/lit.ico
 	litIco []byte
+	//go:embed ico/wld.ico
+	wldIco []byte
 
 	icos map[string]*walk.Bitmap
 )
@@ -73,6 +74,7 @@ func init() {
 		".zon": zonIco,
 		".ter": terIco,
 		".lit": litIco,
+		".wld": wldIco,
 	}
 	icos = make(map[string]*walk.Bitmap)
 	for ext, icoData := range icoMap {
@@ -211,12 +213,7 @@ func (c *Client) inspectContent(file string, data *bytes.Reader) (interface{}, e
 			return nil, fmt.Errorf("zon.Decode %s: %w", file, err)
 		}
 		return zone, nil
-	case ".wld":
-		models, err := quail.WLDDecode(data, nil)
-		if err != nil {
-			return nil, fmt.Errorf("wld.Decode %s: %w", file, err)
-		}
-		return models, nil
+
 	case ".ani":
 		animation := &common.Animation{}
 		err = ani.Decode(animation, data)
@@ -224,6 +221,18 @@ func (c *Client) inspectContent(file string, data *bytes.Reader) (interface{}, e
 			return nil, fmt.Errorf("ani.Decode %s: %w", file, err)
 		}
 		return animation, nil
+	//case ".lit":
+	/*type lightWrapper struct {
+		Lits []*common.RGBA
+	}
+
+	lw := &lightWrapper{}
+	err = lit.Decode(lw.Lits, data)
+	if err != nil {
+		return nil, fmt.Errorf("lit.Decode %s: %w", file, err)
+	}
+	return lw, nil*/
+
 	case ".lay":
 		model := &common.Model{}
 		err := lay.Decode(model, data)
@@ -281,7 +290,6 @@ func (c *Client) inspectContent(file string, data *bytes.Reader) (interface{}, e
 	default:
 		return nil, fmt.Errorf("unknown file type %s", ext)
 	}
-
 }
 
 func (c *Client) reflectTraversal(inspected interface{}, section string, nest int, index int) {

@@ -13,6 +13,7 @@ import (
 	"github.com/xackery/quail-gui/slog"
 	"github.com/xackery/wlk/cpl"
 	"github.com/xackery/wlk/walk"
+	"github.com/xackery/wlk/wcolor"
 )
 
 type Gui struct {
@@ -46,6 +47,7 @@ var (
 
 // NewMainWindow creates a new main window
 func NewMainWindow(ctx context.Context, cancel context.CancelFunc, cfg *config.Config, version string) error {
+	//walk.SetDarkModeAllowed(true)
 	gui = &Gui{
 		ctx:    ctx,
 		cancel: cancel,
@@ -230,7 +232,7 @@ func NewMainWindow(ctx context.Context, cancel context.CancelFunc, cfg *config.C
 					},
 				}},
 				cpl.VSplitter{Children: []cpl.Widget{
-					cpl.Label{Text: "Category", AssignTo: &gui.sectionLabel},
+					cpl.Label{Text: "", AssignTo: &gui.sectionLabel},
 					cpl.ListBox{
 						AssignTo:              &gui.sectionList,
 						Name:                  "Section",
@@ -239,13 +241,13 @@ func NewMainWindow(ctx context.Context, cancel context.CancelFunc, cfg *config.C
 					},
 				}},
 				cpl.VSplitter{Children: []cpl.Widget{
-					cpl.Label{Text: "Contents", AssignTo: &gui.contentsLabel},
+					cpl.Label{Text: "", AssignTo: &gui.contentsLabel},
 					cpl.TextEdit{
 						AssignTo:   &gui.contents,
 						ReadOnly:   true,
 						Enabled:    false,
 						VScroll:    true,
-						Background: cpl.SolidColorBrush{Color: walk.RGB(255, 255, 255)},
+						Background: cpl.SolidColorBrush{Color: wcolor.RGB(255, 255, 255)},
 					},
 				}},
 				cpl.ProgressBar{
@@ -507,6 +509,7 @@ func SetSections(sections map[string]*Section) {
 
 func onFileViewSelect() {
 	if len(gui.fileEntries) == 0 {
+		gui.sectionLabel.SetText("")
 		return
 	}
 
@@ -517,6 +520,7 @@ func onFileViewSelect() {
 	SetProgress(0)
 	name := gui.fileEntries[gui.table.CurrentIndex()].Name
 	slog.Printf("FileView Selected %s\n", name)
+	gui.sectionLabel.SetText(name)
 	gui.exportSelected.SetText("&Export " + name)
 	for _, fn := range gui.openHandler {
 		err := fn("", name)
@@ -547,6 +551,7 @@ func onSectionListSelect() {
 	}
 
 	fmt.Println("name", name)
+	gui.contentsLabel.SetText(name)
 	gui.sectionList.SetEnabled(true)
 	gui.contents.SetEnabled(true)
 	gui.contents.SetText(gui.sections[name].Content)

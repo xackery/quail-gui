@@ -1,7 +1,9 @@
 package client
 
 import (
+	"bytes"
 	"context"
+	"encoding/binary"
 	"fmt"
 	"net/http"
 	"os"
@@ -9,9 +11,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/xackery/encdec"
 	"github.com/xackery/quail-gui/config"
 	"github.com/xackery/quail-gui/gui"
 	"github.com/xackery/quail-gui/slog"
+	"github.com/xackery/quail/common"
 	qlog "github.com/xackery/quail/log"
 	"github.com/xackery/quail/pfs"
 )
@@ -129,6 +133,19 @@ func (c *Client) Open(path string, file string) error {
 		gui.SetSections(c.sections)
 		return nil
 	}
+	if fileExt == ".lit" {
+		c.sections[".Info"] = &gui.Section{
+			Name:    ".Info",
+			Content: "Lit files contain baked light data in a binary format.\r\nThere isn't much to show for contents",
+			Icon:    generateIcon(file, nil),
+		}
+		gui.SetSections(c.sections)
+		return nil
+	}
+	if c.wldInspect(file) {
+		return nil
+	}
+
 	c.currentPath = path
 	c.fileName = file
 
@@ -259,4 +276,56 @@ func (c *Client) SaveContent(path string, file string) error {
 	}
 	return nil
 
+}
+
+func (c *Client) wldInspect(file string) (isInspected bool) {
+
+	fileExt := strings.ToLower(filepath.Ext(file))
+	if fileExt != ".wld" {
+		return
+	}
+	isInspected = true
+
+	data, err := c.pfs.File(file)
+	if err != nil {
+		slog.Printf("Failed to open file %s: %s", file, err)
+		return
+	}
+	c.sections[".Info"] = &gui.Section{
+		Name:    ".Info",
+		Content: "Wld Zone Data",
+		Icon:    generateIcon(file, nil),
+	}
+	wld, err := common.WldOpen(bytes.NewReader(data))
+	if err != nil {
+		slog.Printf("Failed to open wld %s: %s", file, err)
+		return
+	}
+
+	for i := uint32(0); i < wld.FragmentCount; i++ {
+		data, err := wld.Fragment(int(i))
+		if err != nil {
+			slog.Printf("Failed to open fragment %d: %s", i, err)
+			return
+		}
+
+		r := bytes.NewReader(data)
+		dec := encdec.NewDecoder(r, binary.LittleEndian)
+
+		fragCode := dec.Int32()
+		fragName := common.FragName(int(fragCode))
+		_, ok := c.sections[fragName]
+		if !ok {
+			c.sections[fragName] = &gui.Section{
+				Name:    fragName,
+				Count:   0,
+				Content: "Todo: Actual content",
+			}
+		}
+		c.sections[fragName].Count++
+	}
+
+	gui.SetSections(c.sections)
+
+	return true
 }
