@@ -25,14 +25,12 @@ func ShowEditor(page *walk.TabPage, node *component.TreeNode) (Editor, error) {
 		return showLayEditor(page, node)
 	case *common.Header:
 		return showHeaderEditor(page, node)
+	case *common.Model:
+		return showModEditor(page, node)
 		/* case common.ParticlePointEntry:
-			ext := "pts"
-			err := showPtsEditor(page, node)
-			return ext, err
-		case *common.Model:
-			ext := "mod"
-			err := showModEditor(page, node)
-			return ext, err
+		ext := "pts"
+		err := showPtsEditor(page, node)
+		return ext, err
 		*/
 	}
 

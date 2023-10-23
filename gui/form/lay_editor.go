@@ -85,6 +85,9 @@ func (e *LayEditor) Save() error {
 	e.src.Normal = e.normal.Text()
 	e.src.Material = e.material.Text()
 
+	slog.Printf("Saving %+v\n", e.src)
+	slog.Printf("model: %+v\n", model)
+
 	buf := bytes.NewBuffer(nil)
 	err := lay.Encode(model, buf)
 	if err != nil {

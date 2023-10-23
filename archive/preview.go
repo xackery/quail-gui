@@ -1,10 +1,11 @@
-package preview
+package archive
 
 import (
 	"fmt"
 	"path/filepath"
 	"time"
 
+	"github.com/xackery/quail/common"
 	"github.com/xackery/quail/pfs"
 
 	"github.com/xackery/quail-view/mesh"
@@ -22,7 +23,11 @@ import (
 	"github.com/xackery/engine/window"
 )
 
-func Start(path string, file string) error {
+func Preview(models []*common.Model) error {
+	if openPath == "" {
+		return fmt.Errorf("no archive loaded")
+	}
+	path := openPath
 
 	// Create application and scene
 	a := app.App(600, 600, fmt.Sprintf("quail-view - %s", filepath.Base(path)))
@@ -72,8 +77,8 @@ func Start(path string, file string) error {
 	// Create a blue torus and add it to the scene
 	//geom := geometry.NewPlane(1, 1)
 	//geom := plane.NewPlane(1, 1)
-	for i := 0; i < len(q.Models); i++ {
-		mesh, err := mesh.Generate(archive, q.Models[i])
+	for _, model := range models {
+		mesh, err := mesh.Generate(archive, model)
 		if err != nil {
 			return fmt.Errorf("generate: %w", err)
 		}

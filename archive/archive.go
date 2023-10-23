@@ -118,7 +118,7 @@ func writeFile(dir string, fileName string, data []byte) error {
 	return nil
 }
 
-func Files() []pfs.FileEntry {
+func Files() []*pfs.FileEntry {
 	if archive == nil {
 		return nil
 	}
@@ -140,4 +140,11 @@ func SetFile(name string, data []byte) error {
 		name = fileName
 	}
 	return archive.SetFile(name, data)
+}
+
+func Refresh() error {
+	if archive == nil {
+		return fmt.Errorf("no archive loaded")
+	}
+	return Open(openPath, fileName)
 }

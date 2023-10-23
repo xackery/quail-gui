@@ -7,7 +7,7 @@ require (
 	github.com/g3n/engine v0.2.0
 	github.com/malashin/dds v0.0.0-20190511100755-ab62708f5fe5
 	github.com/xackery/engine v0.3.3
-	github.com/xackery/quail v0.0.0-20231018202321-300f6688ca38
+	github.com/xackery/quail v0.0.0-20231020171610-4bdfa0acbd4f
 	github.com/xackery/quail-view v0.0.0-20231019174433-694f7b25b87d
 	github.com/xackery/wlk v0.0.4
 	golang.org/x/image v0.13.0
@@ -28,4 +28,3 @@ require (
 	golang.org/x/sys v0.13.0 // indirect
 	gopkg.in/Knetic/govaluate.v3 v3.0.0 // indirect
 )
-

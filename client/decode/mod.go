@@ -19,27 +19,31 @@ func Mod(name string, r io.ReadSeeker) (*component.TreeModel, error) {
 	treeModel := component.NewTreeModel()
 	treeModel.SetRef(model)
 
-	treeModel.RootAdd(ico.Grab("preview"), "Preview", model)
-	treeModel.RootAdd(ico.Grab("header"), "Header", model.Header)
+	root := treeModel.RootAdd(ico.Grab(".mod"), "Model", model)
 
-	root := treeModel.RootAdd(ico.Grab(".mat"), fmt.Sprintf("Materials (%d)", len(model.Materials)), model.Materials)
+	root.ChildAdd(ico.Grab("header"), "Header", model.Header)
+
+	materialRoot := root.ChildAdd(ico.Grab(".mat"), fmt.Sprintf("Materials (%d)", len(model.Materials)), model.Materials)
 	for _, material := range model.Materials {
-		root.ChildAdd(ico.Grab(".mat"), material.Name, material)
+		matNode := materialRoot.ChildAdd(ico.Grab(".mat"), material.Name, material)
+		for _, property := range material.Properties {
+			matNode.ChildAdd(ico.Grab(".mat"), property.Name, property)
+		}
 	}
 
-	root = treeModel.RootAdd(ico.Grab(".tri"), fmt.Sprintf("Triangles (%d)", len(model.Triangles)), model.Triangles)
+	triangleRoot := root.ChildAdd(ico.Grab(".tri"), fmt.Sprintf("Triangles (%d)", len(model.Triangles)), model.Triangles)
 	for _, triangle := range model.Triangles {
-		root.ChildAdd(ico.Grab(".tri"), fmt.Sprintf("%d triangle", triangle.Index), triangle)
+		triangleRoot.ChildAdd(ico.Grab(".tri"), fmt.Sprintf("%d triangle", triangle.Index), triangle)
 	}
 
-	root = treeModel.RootAdd(ico.Grab(".ver"), fmt.Sprintf("Vertices (%d)", len(model.Vertices)), model.Vertices)
+	vertexRoot := root.ChildAdd(ico.Grab(".ver"), fmt.Sprintf("Vertices (%d)", len(model.Vertices)), model.Vertices)
 	for i, vert := range model.Vertices {
-		root.ChildAdd(ico.Grab(".ver"), fmt.Sprintf("%d vertex", i), vert)
+		vertexRoot.ChildAdd(ico.Grab(".ver"), fmt.Sprintf("%d vertex", i), vert)
 	}
 
-	root = treeModel.RootAdd(ico.Grab(".bon"), fmt.Sprintf("Bones (%d)", len(model.Bones)), model.Bones)
+	boneRoot := root.ChildAdd(ico.Grab(".bon"), fmt.Sprintf("Bones (%d)", len(model.Bones)), model.Bones)
 	for _, bone := range model.Bones {
-		root.ChildAdd(ico.Grab(".bon"), bone.Name, bone)
+		boneRoot.ChildAdd(ico.Grab(".bon"), bone.Name, bone)
 	}
 	return treeModel, nil
 }

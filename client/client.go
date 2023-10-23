@@ -7,11 +7,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/xackery/quail-gui/preview"
-
 	"github.com/xackery/quail-gui/config"
 	"github.com/xackery/quail-gui/gui/handler"
-	"github.com/xackery/quail-gui/slog"
 	qlog "github.com/xackery/quail/log"
 )
 
@@ -55,14 +52,6 @@ func New(ctx context.Context, cancel context.CancelFunc, cfg *config.Config, ver
 	handler.ArchiveExportAllSubscribe(c.onArchiveExportAll)
 	handler.ArchiveExportFileSubscribe(c.onArchiveExportFile)
 	handler.ArchiveRefreshSubscribe(c.onArchiveRefresh)
-	handler.PreviewSubscribe(c.onPreview)
-
-	/*gui.SubscribePatchButton(func() {
-		err := c.Patch()
-		if err != nil {
-			slog.Print("Failed to patch: %s", err)
-		}
-	})*/
 
 	return c, nil
 }
@@ -72,12 +61,4 @@ func (c *Client) Done() error {
 		c.cancel()
 	}
 	return nil
-}
-
-func (c *Client) onPreview() {
-	fmt.Println("Previewing", c.openPath, c.fileName)
-	err := preview.Start(c.openPath, c.fileName)
-	if err != nil {
-		slog.Print("Failed to start viewer: %s", err)
-	}
 }

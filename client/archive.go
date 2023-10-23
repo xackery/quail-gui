@@ -82,6 +82,7 @@ func (c *Client) open(path string, file string, isSelect bool) error {
 		{".prt", decode.Prt},
 		{".ani", decode.Ani},
 		{".zon", decode.Zon},
+		{".wld", decode.Wld},
 	}
 
 	for _, ve := range validExts {

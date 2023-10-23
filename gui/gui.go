@@ -9,12 +9,14 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/xackery/quail-gui/archive"
 	"github.com/xackery/quail-gui/config"
 	"github.com/xackery/quail-gui/gui/component"
 	"github.com/xackery/quail-gui/gui/form"
 	"github.com/xackery/quail-gui/gui/handler"
 	"github.com/xackery/quail-gui/ico"
 	"github.com/xackery/quail-gui/slog"
+	"github.com/xackery/quail/common"
 	"github.com/xackery/wlk/cpl"
 	"github.com/xackery/wlk/walk"
 	"github.com/xackery/wlk/wcolor"
@@ -82,6 +84,7 @@ func NewMainWindow(ctx context.Context, cancel context.CancelFunc, cfg *config.C
 	slog.AddHandler(Logf)
 	handler.EditSaveSubscribe(onEditSave)
 	handler.EditResetSubscribe(onEditReset)
+	handler.PreviewSubscribe(onPreview)
 
 	var filesSplit *walk.Splitter
 
@@ -781,4 +784,29 @@ func onEditSave() {
 
 	//gui.treeView.UpdateItem(activeEditor.Node())
 	gui.treeModel.PublishItemChanged(activeEditor.Node())
+}
+
+func onPreview() {
+	if gui == nil {
+		return
+	}
+
+	if activeEditor == nil {
+		slog.Println("No active editor")
+		return
+	}
+
+	if activeEditor.Node() == nil {
+		slog.Println("No active editor node")
+	}
+
+	model, ok := activeEditor.Node().Ref().(*common.Model)
+	if !ok {
+		slog.Printf("Failed to cast node to model: %T\n", activeEditor.Node().Ref())
+	}
+
+	err := archive.Preview([]*common.Model{model})
+	if err != nil {
+		slog.Print("Failed to start viewer: %s", err)
+	}
 }

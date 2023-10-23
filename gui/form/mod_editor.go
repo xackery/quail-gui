@@ -1,35 +1,57 @@
 package form
 
 import (
+	"fmt"
+
 	"github.com/xackery/quail-gui/gui/component"
 	"github.com/xackery/quail-gui/gui/handler"
+	"github.com/xackery/quail/common"
 	"github.com/xackery/wlk/cpl"
 	"github.com/xackery/wlk/walk"
 )
 
-func showModEditor(page *walk.TabPage, node *component.TreeNode) error {
-	/* _, ok := node.Ref().(*common.Model)
+var (
+	modEditor *ModEditor
+)
+
+type ModEditor struct {
+	src  *common.Model
+	node *component.TreeNode
+}
+
+func showModEditor(page *walk.TabPage, node *component.TreeNode) (Editor, error) {
+	src, ok := node.Ref().(*common.Model)
 	if !ok {
 		return nil, fmt.Errorf("node is not a model")
 	}
-	dst := &common.Model{}
-	db := new(walk.DataBinder)
 
-	present, err := walk.NewToolTipErrorPresenter()
-	if err != nil {
-		return nil, err
-	}
-	db.SetErrorPresenter(present)
+	e := modEditor
 
-	err = db.SetDataSource(dst)
-	if err != nil {
-		return nil, err
-	} */
+	e.src = src
+	e.node = node
+	return e, nil
+}
 
+func (e *ModEditor) Save() error {
 	return nil
 }
 
+func (e *ModEditor) Reset() {
+
+}
+
+func (e *ModEditor) Node() *component.TreeNode {
+	return e.node
+}
+
+func (e *ModEditor) Ext() string {
+	return ".mod"
+}
+
 func ModEditWidgets() []cpl.Widget {
+	if modEditor == nil {
+		modEditor = &ModEditor{}
+	}
 	return []cpl.Widget{
 		cpl.Composite{
 			Layout: cpl.Grid{Columns: 2},
