@@ -4,45 +4,59 @@
 package gui
 
 import (
+	"bytes"
 	"context"
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/xackery/quail-gui/config"
+	"github.com/xackery/quail-gui/gui/component"
+	"github.com/xackery/quail-gui/gui/form"
+	"github.com/xackery/quail-gui/gui/handler"
+	"github.com/xackery/quail-gui/ico"
 	"github.com/xackery/quail-gui/slog"
 	"github.com/xackery/wlk/cpl"
 	"github.com/xackery/wlk/walk"
 	"github.com/xackery/wlk/wcolor"
+	"gopkg.in/yaml.v2"
 )
 
 type Gui struct {
-	ctx                   context.Context
-	cancel                context.CancelFunc
-	mw                    *walk.MainWindow
-	progress              *walk.ProgressBar
-	log                   *walk.TextEdit
-	table                 *walk.TableView
-	exportSelected        *walk.Action
-	newHandler            []func()
-	openHandler           []func(path string, file string) error
-	savePFSHandler        []func(path string) error
-	saveContentHandler    []func(path string, file string) error
-	saveAllContentHandler []func(path string) error
-	refreshHandler        []func()
-	fileView              *FileView
-	fileEntries           []*FileViewEntry
-	sectionLabel          *walk.Label
-	sectionList           *walk.ListBox
-	sections              map[string]*Section
-	contentsLabel         *walk.Label
-	contents              *walk.TextEdit
-	image                 *walk.ImageView
-	statusBar             *walk.StatusBarItem
+	ctx            context.Context
+	cancel         context.CancelFunc
+	mw             *walk.MainWindow
+	progress       *walk.ProgressBar
+	log            *walk.TextEdit
+	table          *walk.TableView
+	exportSelected *walk.Action
+	fileView       *component.FileView
+	fileEntries    []*component.FileViewEntry
+	contentsLabel  *walk.Label
+	contents       *walk.TextEdit
+	image          *walk.ImageView
+	imageLabel     *walk.Label
+	statusBar      *walk.StatusBarItem
+	treeView       *walk.TreeView
+	treeModel      *component.TreeModel
+	treeCopy       *component.TreeNode
+	editView       *walk.TabPage
+	pageView       *walk.TabWidget
+	yamlView       *walk.TabPage
+	titleEdit      *walk.Label
+	editSave       *walk.PushButton
 }
 
 var (
-	gui *Gui
+	gui       *Gui
+	editViews = map[string]*walk.Composite{
+		".lay":    nil,
+		".pts":    nil,
+		"header":  nil,
+		"zon_obj": nil,
+		".unk":    nil,
+		".mod":    nil,
+	}
+	activeEditor form.Editor
 )
 
 // NewMainWindow creates a new main window
@@ -54,11 +68,26 @@ func NewMainWindow(ctx context.Context, cancel context.CancelFunc, cfg *config.C
 	}
 
 	var err error
-	fvs := &fileViewStyler{}
-	gui.fileView = NewFileView()
+	gui.fileView = component.NewFileView()
+	fvs := component.NewFileViewStyler(gui.fileView)
+	gui.treeModel = component.NewTreeModel()
+
+	layEdit := editViews[".lay"]
+	ptsEdit := editViews[".pts"]
+	headerEdit := editViews["header"]
+	zonObjEdit := editViews["zon_obj"]
+	unkEdit := editViews[".unk"]
+	modEdit := editViews[".mod"]
+
+	slog.AddHandler(Logf)
+	handler.EditSaveSubscribe(onEditSave)
+	handler.EditResetSubscribe(onEditReset)
+
+	var filesSplit *walk.Splitter
+
 	cmw := cpl.MainWindow{
 		Title:   "quail-gui v" + version,
-		MinSize: cpl.Size{Width: 405, Height: 371},
+		MinSize: cpl.Size{Width: 300, Height: 300},
 		Layout:  cpl.VBox{},
 		Visible: false,
 		Name:    "quail-gui",
@@ -69,9 +98,7 @@ func NewMainWindow(ctx context.Context, cancel context.CancelFunc, cfg *config.C
 					cpl.Action{
 						Text: "&New",
 						OnTriggered: func() {
-							for _, fn := range gui.newHandler {
-								fn()
-							}
+							handler.ArchiveNewInvoke()
 						},
 						Shortcut: cpl.Shortcut{
 							Key:       walk.KeyN,
@@ -87,10 +114,13 @@ func NewMainWindow(ctx context.Context, cancel context.CancelFunc, cfg *config.C
 								slog.Printf("Failed to open: %s\n", err)
 								return
 							}
-							slog.Printf("Opening %s\n", path)
-							for _, fn := range gui.openHandler {
-								fn(path, "")
+							slog.Printf("Menu Opening %s\n", path)
+							err = handler.ArchiveOpenInvoke(path, "", true)
+							if err != nil {
+								slog.Printf("Failed to open: %s\n", err)
+								return
 							}
+
 						},
 						Shortcut: cpl.Shortcut{
 							Key:       walk.KeyO,
@@ -100,12 +130,10 @@ func NewMainWindow(ctx context.Context, cancel context.CancelFunc, cfg *config.C
 					cpl.Action{
 						Text: "&Save",
 						OnTriggered: func() {
-							for _, fn := range gui.savePFSHandler {
-								err = fn("")
-								if err != nil {
-									slog.Printf("Failed to save: %s\n", err)
-									return
-								}
+							err = handler.ArchiveSaveInvoke("")
+							if err != nil {
+								slog.Printf("Failed to save: %s\n", err)
+								return
 							}
 						},
 						Shortcut: cpl.Shortcut{
@@ -122,12 +150,10 @@ func NewMainWindow(ctx context.Context, cancel context.CancelFunc, cfg *config.C
 								return
 							}
 							slog.Printf("Saving %s\n", path)
-							for _, fn := range gui.savePFSHandler {
-								err = fn(path)
-								if err != nil {
-									slog.Printf("Failed to save: %s\n", err)
-									return
-								}
+							err = handler.ArchiveSaveInvoke(path)
+							if err != nil {
+								slog.Printf("Failed to save: %s\n", err)
+								return
 							}
 						},
 						Shortcut: cpl.Shortcut{
@@ -139,12 +165,8 @@ func NewMainWindow(ctx context.Context, cancel context.CancelFunc, cfg *config.C
 						Text: "Refresh",
 						OnTriggered: func() {
 							lastSel := gui.table.CurrentIndex()
-							//lastSection := gui.sectionList.CurrentIndex()
-							for _, fn := range gui.refreshHandler {
-								fn()
-							}
+							handler.ArchiveRefreshInvoke()
 							gui.table.SetCurrentIndex(lastSel)
-							//gui.sectionList.SetCurrentIndex(lastSection)
 						},
 						Shortcut: cpl.Shortcut{
 							Key: walk.KeyF5,
@@ -172,12 +194,10 @@ func NewMainWindow(ctx context.Context, cancel context.CancelFunc, cfg *config.C
 								slog.Printf("Failed to save: %s\n", err)
 								return
 							}
-							for _, fn := range gui.saveContentHandler {
-								err = fn(path, entry)
-								if err != nil {
-									slog.Printf("Failed to save %s: %s\n", entry, err)
-									return
-								}
+							err = handler.ArchiveExportFileInvoke(path, entry)
+							if err != nil {
+								slog.Printf("Failed to save: %s\n", err)
+								return
 							}
 						},
 						AssignTo: &gui.exportSelected,
@@ -191,13 +211,12 @@ func NewMainWindow(ctx context.Context, cancel context.CancelFunc, cfg *config.C
 								return
 							}
 							slog.Printf("Exporting all to %s\n", path)
-							for _, fn := range gui.saveAllContentHandler {
-								err = fn(path)
-								if err != nil {
-									slog.Printf("Failed to save content: %s\n", err)
-									return
-								}
+							err = handler.ArchiveExportAllInvoke(path)
+							if err != nil {
+								slog.Printf("Failed to save: %s\n", err)
+								return
 							}
+
 						},
 					},
 				},
@@ -205,51 +224,240 @@ func NewMainWindow(ctx context.Context, cancel context.CancelFunc, cfg *config.C
 		},
 		Children: []cpl.Widget{
 			cpl.HSplitter{Children: []cpl.Widget{
-				cpl.VSplitter{Children: []cpl.Widget{
-					cpl.Label{Text: "Files"},
-					cpl.TableView{
-						AssignTo:              &gui.table,
-						Name:                  "tableView",
-						AlternatingRowBG:      true,
-						ColumnsOrderable:      true,
-						MultiSelection:        false,
-						OnCurrentIndexChanged: onFileViewSelect,
-						StyleCell:             fvs.StyleCell,
-						MinSize:               cpl.Size{Width: 250, Height: 0},
-						Columns: []cpl.TableViewColumn{
-							{Name: "Name", Width: 160},
-							{Name: "Ext", Width: 40},
-							{Name: "Size", Width: 80},
+				cpl.VSplitter{
+					AssignTo:           &filesSplit,
+					AlwaysConsumeSpace: false,
+					Children: []cpl.Widget{
+						cpl.Label{Text: "Files"},
+						cpl.TableView{
+							AssignTo:              &gui.table,
+							Name:                  "tableView",
+							AlternatingRowBG:      true,
+							ColumnsOrderable:      true,
+							MultiSelection:        false,
+							OnCurrentIndexChanged: onFileViewSelect,
+							StyleCell:             fvs.StyleCell,
+							Columns: []cpl.TableViewColumn{
+								{Name: "Name", Width: 160},
+								{Name: "Ext", Width: 40},
+								{Name: "Size", Width: 80},
+							},
 						},
 					},
-				}},
-				cpl.VSplitter{Children: []cpl.Widget{
-					//cpl.Label{Text: "Image"},
+				},
+				cpl.VSplitter{AlwaysConsumeSpace: true, Children: []cpl.Widget{
+					cpl.Label{Text: "", AssignTo: &gui.imageLabel},
 					cpl.ImageView{
 						AssignTo: &gui.image,
 						Visible:  false,
 						Mode:     cpl.ImageViewModeZoom,
 					},
 				}},
-				cpl.VSplitter{Children: []cpl.Widget{
-					cpl.Label{Text: "", AssignTo: &gui.sectionLabel},
-					cpl.ListBox{
-						AssignTo:              &gui.sectionList,
-						Name:                  "Section",
-						OnCurrentIndexChanged: onSectionListSelect,
-						MinSize:               cpl.Size{Width: 200, Height: 0},
+
+				cpl.VSplitter{AlwaysConsumeSpace: true, Children: []cpl.Widget{
+					cpl.Label{Text: "Tree"},
+					cpl.TreeView{
+						AssignTo: &gui.treeView,
+						Visible:  true,
+						Model:    gui.treeModel,
+						OnCurrentItemChanged: func() {
+							node := gui.treeView.CurrentItem().(*component.TreeNode)
+
+							buf := bytes.NewBuffer(nil)
+							enc := yaml.NewEncoder(buf)
+							defer enc.Close()
+
+							err = enc.Encode(node.Ref())
+							if err != nil {
+								slog.Printf("yaml encode: %s\n", err)
+								return
+							}
+
+							gui.editSave.SetEnabled(false)
+							gui.contents.SetText(strings.ReplaceAll(buf.String(), "\n", "\r\n"))
+							editor, err := form.ShowEditor(gui.editView, node)
+							if err != nil {
+								slog.Printf("Failed editing: %s\n", err)
+								for _, view := range editViews {
+									if view == nil {
+										continue
+									}
+									view.SetVisible(false)
+								}
+								unkEdit.SetVisible(true)
+								gui.titleEdit.SetText(fmt.Sprintf("Select a valid node to edit on left. %T is not yet supported", node.Ref()))
+
+								return
+							}
+							ext := editor.Ext()
+							editView, ok := editViews[ext]
+							if !ok {
+								slog.Printf("Failed finding edit view %s\n", ext)
+								return
+							}
+							if editView == nil {
+								slog.Printf("Failed edit view is nil %s\n", ext)
+								unkEdit.SetVisible(true)
+								return
+							}
+							for _, view := range editViews {
+								if view == nil {
+									continue
+								}
+								view.SetVisible(false)
+							}
+							activeEditor = editor
+							gui.titleEdit.SetText(fmt.Sprintf("Editing node %T. Press Save to apply changes.", node.Ref()))
+							editView.SetVisible(true)
+							gui.editSave.SetEnabled(true)
+						},
+						OnKeyDown: func(key walk.Key) {
+							if key == walk.KeyDelete {
+								node := gui.treeView.CurrentItem().(*component.TreeNode)
+								if node == nil {
+									slog.Printf("Failed to delete: node is nil\n")
+									return
+								}
+								if node.Parent() == nil {
+									slog.Printf("Failed to delete: node parent is nil\n")
+									return
+								}
+								node.Parent().RemoveChild(node)
+								//gui.treeModel.PublishItemsReset(node.Parent())
+								slog.Printf("Deleted %+v\n", node)
+								return
+							}
+							if key == walk.KeyInsert {
+								node := gui.treeView.CurrentItem().(*component.TreeNode)
+								if node == nil {
+									slog.Printf("Failed to insert: node is nil\n")
+									return
+								}
+								newNode := component.NewTreeNode(node, ico.Grab(".lay"), "New Node", nil)
+								slog.Printf("Inserted %+v\n", newNode)
+								gui.treeModel.PublishItemsReset(node)
+								return
+							}
+							if key == walk.KeyV && walk.ControlDown() {
+								if gui.treeCopy == nil {
+									slog.Printf("Failed to paste: copy is nil\n")
+									return
+								}
+
+								node := gui.treeView.CurrentItem().(*component.TreeNode)
+								if node == nil {
+									slog.Printf("Failed to insert: node is nil\n")
+									return
+								}
+
+								newNode := component.NewTreeNode(node, gui.treeCopy.Icon(), gui.treeCopy.Text(), gui.treeCopy.DuplicateRef())
+
+								slog.Printf("Pasted %+v\n", newNode)
+								gui.treeModel.PublishItemsReset(node)
+								return
+							}
+							if key == walk.KeyC && walk.ControlDown() {
+								node := gui.treeView.CurrentItem().(*component.TreeNode)
+								if node == nil {
+									slog.Printf("Failed to copy: node is nil\n")
+									return
+								}
+								gui.treeCopy = node
+								slog.Printf("Copied %+v\n", node)
+								return
+							}
+
+						},
+						MinSize: cpl.Size{Width: 250, Height: 0},
 					},
 				}},
-				cpl.VSplitter{Children: []cpl.Widget{
-					cpl.Label{Text: "", AssignTo: &gui.contentsLabel},
-					cpl.TextEdit{
-						AssignTo:   &gui.contents,
-						ReadOnly:   true,
-						Enabled:    false,
-						VScroll:    true,
-						Background: cpl.SolidColorBrush{Color: wcolor.RGB(255, 255, 255)},
+				cpl.TabWidget{
+					AssignTo: &gui.pageView,
+					Pages: []cpl.TabPage{
+						{
+							Title:    "Edit",
+							Layout:   cpl.VBox{},
+							AssignTo: &gui.editView,
+							Children: []cpl.Widget{
+								cpl.VSplitter{
+									Visible: true,
+									Children: []cpl.Widget{
+										cpl.Composite{
+											Visible:  true,
+											AssignTo: &unkEdit,
+											Layout:   cpl.Grid{Columns: 2},
+											Children: []cpl.Widget{
+												cpl.Label{Text: "Select a valid node to edit on left", AssignTo: &gui.titleEdit},
+											},
+										},
+										cpl.Composite{
+											Visible:  false,
+											AssignTo: &layEdit,
+											Layout:   cpl.Grid{Columns: 2},
+											Children: form.LayEditWidgets(),
+										},
+										cpl.Composite{
+											Visible:  false,
+											AssignTo: &ptsEdit,
+											Layout:   cpl.Grid{Columns: 2},
+											Children: form.PtsEditWidgets(),
+										},
+										cpl.Composite{
+											Visible:  false,
+											AssignTo: &headerEdit,
+											Layout:   cpl.Grid{Columns: 2},
+											Children: form.HeaderEditWidgets(),
+										},
+										cpl.Composite{
+											Visible:  false,
+											AssignTo: &zonObjEdit,
+											Layout:   cpl.Grid{Columns: 2},
+											Children: form.ZonObjEditWidgets(),
+										},
+										cpl.Composite{
+											Visible:  false,
+											AssignTo: &modEdit,
+											Layout:   cpl.Grid{Columns: 2},
+											Children: form.ModEditWidgets(),
+										},
+										cpl.Composite{
+											Layout: cpl.HBox{},
+											Children: []cpl.Widget{
+												cpl.HSpacer{},
+												/*cpl.PushButton{
+													Text:      "Reset",
+													OnClicked: handler.EditResetInvoke,
+												},*/
+												cpl.PushButton{
+													Text:      "Save",
+													OnClicked: handler.EditSaveInvoke,
+													AssignTo:  &gui.editSave,
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+						{
+							Title:    "Yaml",
+							AssignTo: &gui.yamlView,
+							Layout:   cpl.VBox{},
+							Children: []cpl.Widget{
+								cpl.Label{
+									Text: "A read only view of the selected node's contents. Useful for copy pasting to discord.",
+								},
+								cpl.TextEdit{
+									AssignTo:   &gui.contents,
+									ReadOnly:   true,
+									Enabled:    false,
+									VScroll:    true,
+									Background: cpl.SolidColorBrush{Color: wcolor.RGB(255, 255, 255)},
+								},
+							},
+						},
 					},
-				}},
+				},
 				cpl.ProgressBar{
 					AssignTo: &gui.progress,
 					Visible:  false,
@@ -274,6 +482,16 @@ func NewMainWindow(ctx context.Context, cancel context.CancelFunc, cfg *config.C
 		return fmt.Errorf("create main window: %w", err)
 	}
 
+	editViews[".lay"] = layEdit
+	editViews[".pts"] = ptsEdit
+	editViews["header"] = headerEdit
+	editViews["zon_obj"] = zonObjEdit
+	editViews[".mod"] = modEdit
+
+	gui.contents.SetText("Init")
+
+	filesSplit.SetMinMaxSizePixels(walk.Size{Width: 250, Height: 0}, walk.Size{Width: 300, Height: 0})
+
 	gui.table.SetModel(gui.fileView)
 
 	return nil
@@ -283,11 +501,12 @@ func Run() int {
 	if gui == nil {
 		return 1
 	}
+
 	gui.mw.SetVisible(true)
 	return gui.mw.Run()
 }
 
-func SubscribeClose(fn func(cancelled *bool, reason walk.CloseReason)) {
+func SubscribeClose(fn func(cancelled *bool, reason byte)) {
 	if gui == nil {
 		return
 	}
@@ -302,13 +521,13 @@ func Logf(format string, a ...interface{}) {
 
 	line := fmt.Sprintf(format, a...)
 	if strings.Contains(line, "\n") {
-		line = line[0:strings.Index(line, "\n")]
+		line = "  " + line[0:strings.Index(line, "\n")]
 	}
 	gui.statusBar.SetText(line)
 
 	//convert \n to \r\n
-	format = strings.ReplaceAll(format, "\n", "\r\n")
-	gui.log.AppendText(fmt.Sprintf(format, a...))
+	//format = strings.ReplaceAll(format, "\n", "\r\n")
+	//gui.log.AppendText(fmt.Sprintf(format, a...))
 
 }
 
@@ -379,27 +598,6 @@ func Close() {
 	gui.mw.Close()
 }
 
-func SubscribeNew(fn func()) {
-	if gui == nil {
-		return
-	}
-	gui.newHandler = append(gui.newHandler, fn)
-}
-
-func SubscribeOpen(fn func(path string, file string) error) {
-	if gui == nil {
-		return
-	}
-	gui.openHandler = append(gui.openHandler, fn)
-}
-
-func SubscribeRefresh(fn func()) {
-	if gui == nil {
-		return
-	}
-	gui.refreshHandler = append(gui.refreshHandler, fn)
-}
-
 func ShowOpen(title string, filter string, initialDirPath string) (string, error) {
 	if gui == nil {
 		return "", fmt.Errorf("gui not initialized")
@@ -417,20 +615,6 @@ func ShowOpen(title string, filter string, initialDirPath string) (string, error
 		return "", fmt.Errorf("show open: cancelled")
 	}
 	return dialog.FilePath, nil
-}
-
-func SubscribeSavePFS(fn func(path string) error) {
-	if gui == nil {
-		return
-	}
-	gui.savePFSHandler = append(gui.savePFSHandler, fn)
-}
-
-func SubscribeSaveContent(fn func(path string, file string) error) {
-	if gui == nil {
-		return
-	}
-	gui.saveContentHandler = append(gui.saveContentHandler, fn)
 }
 
 func ShowSave(title string, fileName string, initialDirPath string) (string, error) {
@@ -452,13 +636,6 @@ func ShowSave(title string, fileName string, initialDirPath string) (string, err
 	return dialog.FilePath, nil
 }
 
-func SubscribeSaveAllContent(fn func(path string) error) {
-	if gui == nil {
-		return
-	}
-	gui.saveAllContentHandler = append(gui.saveAllContentHandler, fn)
-}
-
 func ShowDirSave(title string, filter string, initialDirPath string) (string, error) {
 	if gui == nil {
 		return "", fmt.Errorf("gui not initialized")
@@ -478,7 +655,7 @@ func ShowDirSave(title string, filter string, initialDirPath string) (string, er
 	return dialog.FilePath, nil
 }
 
-func SetFileViewItems(items []*FileViewEntry) {
+func SetFileViewItems(items []*component.FileViewEntry) {
 	if gui == nil {
 		return
 	}
@@ -488,28 +665,13 @@ func SetFileViewItems(items []*FileViewEntry) {
 		gui.table.SetCurrentIndex(0)
 		onFileViewSelect()
 	}
-}
 
-func SetSections(sections map[string]*Section) {
-	if gui == nil {
-		return
-	}
-	gui.sections = sections
-	sectionList := []string{}
-	for _, v := range sections {
-		sectionList = append(sectionList, fmt.Sprintf("%s (%d)", v.Name, v.Count))
-	}
-	sort.Strings(sectionList)
-	gui.sectionList.SetModel(sectionList)
-	if len(sectionList) > 0 {
-		gui.sectionList.SetCurrentIndex(0)
-		onSectionListSelect()
-	}
+	handler.FileViewRefreshInvoke(items)
+
 }
 
 func onFileViewSelect() {
 	if len(gui.fileEntries) == 0 {
-		gui.sectionLabel.SetText("")
 		return
 	}
 
@@ -520,48 +682,15 @@ func onFileViewSelect() {
 	SetProgress(0)
 	name := gui.fileEntries[gui.table.CurrentIndex()].Name
 	slog.Printf("FileView Selected %s\n", name)
-	gui.sectionLabel.SetText(name)
 	gui.exportSelected.SetText("&Export " + name)
-	for _, fn := range gui.openHandler {
-		err := fn("", name)
-		if err != nil {
-			slog.Printf("Failed to open: %s\n", err)
-			gui.sectionList.SetModel([]string{})
-			gui.sectionList.SetEnabled(false)
-			gui.contents.SetEnabled(false)
-			return
-		}
-	}
-	gui.sectionList.SetEnabled(true)
-	gui.contents.SetEnabled(true)
-}
 
-func onSectionListSelect() {
-	SetProgress(0)
-	fmt.Printf("Activated: %v\n", gui.sectionList.CurrentIndex())
-	if gui.sectionList.CurrentIndex() < 0 || gui.sectionList.CurrentIndex() >= len(gui.sectionList.Model().([]string)) {
-		slog.Printf("Invalid section index %d\n", gui.sectionList.CurrentIndex())
+	err := handler.ArchiveOpenInvoke("", name, false)
+	if err != nil {
+		slog.Printf("Failed to open: %s\n", err)
 		return
 	}
-	//get current sectionlist
-	name := gui.sectionList.Model().([]string)[gui.sectionList.CurrentIndex()]
 
-	if strings.Contains(name, "(") {
-		name = name[0 : strings.Index(name, "(")-1]
-	}
-
-	fmt.Println("name", name)
-	gui.contentsLabel.SetText(name)
-	gui.sectionList.SetEnabled(true)
 	gui.contents.SetEnabled(true)
-	gui.contents.SetText(gui.sections[name].Content)
-	gui.image.SetVisible(false)
-	gui.image.SetImage(nil)
-	gui.contents.SetVisible(true)
-	gui.sectionList.SetVisible(true)
-	gui.sectionLabel.SetVisible(true)
-	gui.contentsLabel.SetVisible(true)
-	slog.Printf("Section Selected %s\n", name)
 }
 
 func SetImage(image walk.Image) {
@@ -571,17 +700,85 @@ func SetImage(image walk.Image) {
 	fmt.Println("image change", image)
 	if image == nil {
 		gui.image.SetImage(nil)
+		gui.imageLabel.SetText("")
 		gui.image.SetVisible(false)
 		gui.contents.SetVisible(true)
-		gui.sectionList.SetVisible(true)
-		gui.sectionLabel.SetVisible(true)
 		gui.contentsLabel.SetVisible(true)
 		return
 	}
 	gui.image.SetImage(image)
+	gui.imageLabel.SetText("Image")
 	gui.image.SetVisible(true)
 	gui.contents.SetVisible(false)
-	gui.sectionList.SetVisible(false)
-	gui.sectionLabel.SetVisible(false)
 	gui.contentsLabel.SetVisible(false)
+}
+
+func SetTreeModel(model *component.TreeModel) {
+	if gui == nil {
+		return
+	}
+	gui.treeCopy = nil
+	gui.treeView.SetModel(model)
+	if model.RootCount() < 3 {
+
+		err := gui.treeView.SetExpanded(model.RootAt(0), true)
+		if err != nil {
+			slog.Printf("Failed to expand root 0: %s\n", err)
+		}
+		if model.RootCount() == 1 {
+			root := model.RootAt(0)
+			if root.ChildCount() < 3 {
+				err = gui.treeView.SetExpanded(root.ChildAt(0), true)
+				if err != nil {
+					slog.Printf("Failed to child 0: %s\n", err)
+				}
+
+				if root.ChildCount() > 1 {
+					err = gui.treeView.SetExpanded(root.ChildAt(1), true)
+					if err != nil {
+						slog.Printf("Failed to child 1: %s\n", err)
+					}
+				}
+				if root.ChildCount() > 2 {
+					err = gui.treeView.SetExpanded(root.ChildAt(2), true)
+					if err != nil {
+						slog.Printf("Failed to child 2: %s\n", err)
+					}
+				}
+			}
+		}
+
+		if model.RootCount() > 1 {
+			err = gui.treeView.SetExpanded(model.RootAt(1), true)
+			if err != nil {
+				slog.Printf("Failed to expand root 1: %s\n", err)
+			}
+		}
+
+	}
+}
+
+func onEditReset() {
+	if gui == nil {
+		return
+	}
+
+	activeEditor.Reset()
+
+	slog.Println("Edit restored")
+}
+
+func onEditSave() {
+	if gui == nil {
+		return
+	}
+
+	err := activeEditor.Save()
+	if err != nil {
+		slog.Printf("Failed to save: %s\n", err)
+		return
+	}
+
+	//gui.treeView.UpdateItem(activeEditor.Node())
+	gui.treeModel.PublishItemChanged(activeEditor.Node())
 }

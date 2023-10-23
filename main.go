@@ -12,6 +12,7 @@ import (
 	"github.com/xackery/quail-gui/client"
 	"github.com/xackery/quail-gui/config"
 	"github.com/xackery/quail-gui/gui"
+	"github.com/xackery/quail-gui/gui/handler"
 	"github.com/xackery/quail-gui/slog"
 	"github.com/xackery/wlk/walk"
 )
@@ -56,7 +57,7 @@ func main() {
 	defer slog.Dump(baseName + ".txt")
 	defer c.Done()
 
-	gui.SubscribeClose(func(canceled *bool, reason walk.CloseReason) {
+	gui.SubscribeClose(func(canceled *bool, reason byte) {
 		if ctx.Err() != nil {
 			fmt.Println("Accepting exit")
 			return
@@ -80,7 +81,11 @@ func main() {
 
 	if len(os.Args) > 1 {
 		path := os.Args[1]
-		err = c.Open(path, "")
+		fileName := ""
+		if len(os.Args) > 2 {
+			fileName = os.Args[2]
+		}
+		err = handler.ArchiveOpenInvoke(path, fileName, true)
 		if err != nil {
 			slog.Printf("Failed to open %s: %s", path, err.Error())
 		}
