@@ -64,3 +64,23 @@ func ModEditWidgets() []cpl.Widget {
 		},
 	}
 }
+
+func (e *ModEditor) IsPreview() bool {
+	return true
+}
+
+func (e *ModEditor) IsYaml() bool {
+	return true
+}
+
+func (e *ModEditor) IsEdit() bool {
+	return false
+}
+
+func (e *ModEditor) New(src interface{}) (*component.TreeNode, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (e *ModEditor) Name() string {
+	return "Model"
+}

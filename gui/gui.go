@@ -4,7 +4,6 @@
 package gui
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"strings"
@@ -14,13 +13,11 @@ import (
 	"github.com/xackery/quail-gui/gui/component"
 	"github.com/xackery/quail-gui/gui/form"
 	"github.com/xackery/quail-gui/gui/handler"
-	"github.com/xackery/quail-gui/ico"
 	"github.com/xackery/quail-gui/slog"
 	"github.com/xackery/quail/common"
 	"github.com/xackery/wlk/cpl"
 	"github.com/xackery/wlk/walk"
 	"github.com/xackery/wlk/wcolor"
-	"gopkg.in/yaml.v2"
 )
 
 type Gui struct {
@@ -44,8 +41,10 @@ type Gui struct {
 	editView       *walk.TabPage
 	pageView       *walk.TabWidget
 	yamlView       *walk.TabPage
+	previewView    *walk.TabPage
 	titleEdit      *walk.Label
 	editSave       *walk.PushButton
+	newContext     *walk.Action
 }
 
 var (
@@ -78,20 +77,17 @@ func NewMainWindow(ctx context.Context, cancel context.CancelFunc, cfg *config.C
 	ptsEdit := editViews[".pts"]
 	headerEdit := editViews["header"]
 	zonObjEdit := editViews["zon_obj"]
-	unkEdit := editViews[".unk"]
 	modEdit := editViews[".mod"]
+	unkEdit := editViews[".unk"]
 
 	slog.AddHandler(Logf)
 	handler.EditSaveSubscribe(onEditSave)
 	handler.EditResetSubscribe(onEditReset)
 	handler.PreviewSubscribe(onPreview)
 
-	var filesSplit *walk.Splitter
-
 	cmw := cpl.MainWindow{
 		Title:   "quail-gui v" + version,
 		MinSize: cpl.Size{Width: 300, Height: 300},
-		Layout:  cpl.VBox{},
 		Visible: false,
 		Name:    "quail-gui",
 		MenuItems: []cpl.MenuItem{
@@ -172,7 +168,8 @@ func NewMainWindow(ctx context.Context, cancel context.CancelFunc, cfg *config.C
 							gui.table.SetCurrentIndex(lastSel)
 						},
 						Shortcut: cpl.Shortcut{
-							Key: walk.KeyF5,
+							Key:       walk.KeyF5,
+							Modifiers: walk.ModShift,
 						},
 					},
 					cpl.Action{
@@ -219,255 +216,116 @@ func NewMainWindow(ctx context.Context, cancel context.CancelFunc, cfg *config.C
 								slog.Printf("Failed to save: %s\n", err)
 								return
 							}
-
 						},
 					},
 				},
 			},
 		},
+		Layout: cpl.Grid{Columns: 3},
 		Children: []cpl.Widget{
-			cpl.HSplitter{Children: []cpl.Widget{
-				cpl.VSplitter{
-					AssignTo:           &filesSplit,
-					AlwaysConsumeSpace: false,
-					Children: []cpl.Widget{
-						cpl.Label{Text: "Files"},
-						cpl.TableView{
-							AssignTo:              &gui.table,
-							Name:                  "tableView",
-							AlternatingRowBG:      true,
-							ColumnsOrderable:      true,
-							MultiSelection:        false,
-							OnCurrentIndexChanged: onFileViewSelect,
-							StyleCell:             fvs.StyleCell,
-							Columns: []cpl.TableViewColumn{
-								{Name: "Name", Width: 160},
-								{Name: "Ext", Width: 40},
-								{Name: "Size", Width: 80},
-							},
-						},
-					},
+			cpl.Label{Text: "Files"},
+			cpl.Label{Text: "Tree"},
+			cpl.Label{Text: ""},
+			cpl.TableView{
+				AssignTo:              &gui.table,
+				Name:                  "tableView",
+				AlternatingRowBG:      true,
+				ColumnsOrderable:      true,
+				MultiSelection:        false,
+				OnCurrentIndexChanged: onFileViewSelect,
+				StyleCell:             fvs.StyleCell,
+				MaxSize:               cpl.Size{Width: 300, Height: 0},
+				Columns: []cpl.TableViewColumn{
+					{Name: "Name", Width: 160},
+					{Name: "Ext", Width: 40},
+					{Name: "Size", Width: 80},
 				},
-				cpl.VSplitter{AlwaysConsumeSpace: true, Children: []cpl.Widget{
-					cpl.Label{Text: "", AssignTo: &gui.imageLabel},
-					cpl.ImageView{
-						AssignTo: &gui.image,
-						Visible:  false,
-						Mode:     cpl.ImageViewModeZoom,
-					},
-				}},
-
-				cpl.VSplitter{AlwaysConsumeSpace: true, Children: []cpl.Widget{
-					cpl.Label{Text: "Tree"},
-					cpl.TreeView{
-						AssignTo: &gui.treeView,
-						Visible:  true,
-						Model:    gui.treeModel,
-						OnCurrentItemChanged: func() {
-							node := gui.treeView.CurrentItem().(*component.TreeNode)
-
-							buf := bytes.NewBuffer(nil)
-							enc := yaml.NewEncoder(buf)
-							defer enc.Close()
-
-							err = enc.Encode(node.Ref())
-							if err != nil {
-								slog.Printf("yaml encode: %s\n", err)
-								return
-							}
-
-							gui.editSave.SetEnabled(false)
-							gui.contents.SetText(strings.ReplaceAll(buf.String(), "\n", "\r\n"))
-							editor, err := form.ShowEditor(gui.editView, node)
-							if err != nil {
-								slog.Printf("Failed editing: %s\n", err)
-								for _, view := range editViews {
-									if view == nil {
-										continue
-									}
-									view.SetVisible(false)
-								}
-								unkEdit.SetVisible(true)
-								gui.titleEdit.SetText(fmt.Sprintf("Select a valid node to edit on left. %T is not yet supported", node.Ref()))
-
-								return
-							}
-							ext := editor.Ext()
-							editView, ok := editViews[ext]
-							if !ok {
-								slog.Printf("Failed finding edit view %s\n", ext)
-								return
-							}
-							if editView == nil {
-								slog.Printf("Failed edit view is nil %s\n", ext)
-								unkEdit.SetVisible(true)
-								return
-							}
-							for _, view := range editViews {
-								if view == nil {
-									continue
-								}
-								view.SetVisible(false)
-							}
-							activeEditor = editor
-							gui.titleEdit.SetText(fmt.Sprintf("Editing node %T. Press Save to apply changes.", node.Ref()))
-							editView.SetVisible(true)
-							gui.editSave.SetEnabled(true)
-						},
-						OnKeyDown: func(key walk.Key) {
-							if key == walk.KeyDelete {
-								node := gui.treeView.CurrentItem().(*component.TreeNode)
-								if node == nil {
-									slog.Printf("Failed to delete: node is nil\n")
-									return
-								}
-								if node.Parent() == nil {
-									slog.Printf("Failed to delete: node parent is nil\n")
-									return
-								}
-								node.Parent().RemoveChild(node)
-								//gui.treeModel.PublishItemsReset(node.Parent())
-								slog.Printf("Deleted %+v\n", node)
-								return
-							}
-							if key == walk.KeyInsert {
-								node := gui.treeView.CurrentItem().(*component.TreeNode)
-								if node == nil {
-									slog.Printf("Failed to insert: node is nil\n")
-									return
-								}
-								newNode := component.NewTreeNode(node, ico.Grab(".lay"), "New Node", nil)
-								slog.Printf("Inserted %+v\n", newNode)
-								gui.treeModel.PublishItemsReset(node)
-								return
-							}
-							if key == walk.KeyV && walk.ControlDown() {
-								if gui.treeCopy == nil {
-									slog.Printf("Failed to paste: copy is nil\n")
-									return
-								}
-
-								node := gui.treeView.CurrentItem().(*component.TreeNode)
-								if node == nil {
-									slog.Printf("Failed to insert: node is nil\n")
-									return
-								}
-
-								newNode := component.NewTreeNode(node, gui.treeCopy.Icon(), gui.treeCopy.Text(), gui.treeCopy.DuplicateRef())
-
-								slog.Printf("Pasted %+v\n", newNode)
-								gui.treeModel.PublishItemsReset(node)
-								return
-							}
-							if key == walk.KeyC && walk.ControlDown() {
-								node := gui.treeView.CurrentItem().(*component.TreeNode)
-								if node == nil {
-									slog.Printf("Failed to copy: node is nil\n")
-									return
-								}
-								gui.treeCopy = node
-								slog.Printf("Copied %+v\n", node)
-								return
-							}
-
-						},
-						MinSize: cpl.Size{Width: 250, Height: 0},
-					},
-				}},
-				cpl.TabWidget{
-					AssignTo: &gui.pageView,
-					Pages: []cpl.TabPage{
-						{
-							Title:    "Edit",
-							Layout:   cpl.VBox{},
-							AssignTo: &gui.editView,
-							Children: []cpl.Widget{
-								cpl.VSplitter{
-									Visible: true,
-									Children: []cpl.Widget{
-										cpl.Composite{
-											Visible:  true,
-											AssignTo: &unkEdit,
-											Layout:   cpl.Grid{Columns: 2},
-											Children: []cpl.Widget{
-												cpl.Label{Text: "Select a valid node to edit on left", AssignTo: &gui.titleEdit},
-											},
+			},
+			treeWidget(),
+			cpl.TabWidget{
+				AssignTo: &gui.pageView,
+				Pages: []cpl.TabPage{
+					{
+						Title:    "Edit",
+						Layout:   cpl.VBox{},
+						AssignTo: &gui.editView,
+						Children: []cpl.Widget{
+							cpl.VSplitter{
+								Visible: true,
+								Children: []cpl.Widget{
+									cpl.Composite{
+										Visible:  true,
+										AssignTo: &unkEdit,
+										Layout:   cpl.Grid{Columns: 2},
+										Children: []cpl.Widget{
+											cpl.Label{Text: "Select a valid node to edit on left", AssignTo: &gui.titleEdit},
 										},
-										cpl.Composite{
-											Visible:  false,
-											AssignTo: &layEdit,
-											Layout:   cpl.Grid{Columns: 2},
-											Children: form.LayEditWidgets(),
-										},
-										cpl.Composite{
-											Visible:  false,
-											AssignTo: &ptsEdit,
-											Layout:   cpl.Grid{Columns: 2},
-											Children: form.PtsEditWidgets(),
-										},
-										cpl.Composite{
-											Visible:  false,
-											AssignTo: &headerEdit,
-											Layout:   cpl.Grid{Columns: 2},
-											Children: form.HeaderEditWidgets(),
-										},
-										cpl.Composite{
-											Visible:  false,
-											AssignTo: &zonObjEdit,
-											Layout:   cpl.Grid{Columns: 2},
-											Children: form.ZonObjEditWidgets(),
-										},
-										cpl.Composite{
-											Visible:  false,
-											AssignTo: &modEdit,
-											Layout:   cpl.Grid{Columns: 2},
-											Children: form.ModEditWidgets(),
-										},
-										cpl.Composite{
-											Layout: cpl.HBox{},
-											Children: []cpl.Widget{
-												cpl.HSpacer{},
-												/*cpl.PushButton{
-													Text:      "Reset",
-													OnClicked: handler.EditResetInvoke,
-												},*/
-												cpl.PushButton{
-													Text:      "Save",
-													OnClicked: handler.EditSaveInvoke,
-													AssignTo:  &gui.editSave,
-												},
+									},
+									cpl.Composite{Visible: false, AssignTo: &layEdit, Layout: cpl.Grid{Columns: 2}, Children: form.LayEditWidgets()},
+									cpl.Composite{Visible: false, AssignTo: &ptsEdit, Layout: cpl.Grid{Columns: 2}, Children: form.PtsEditWidgets()},
+									cpl.Composite{Visible: false, AssignTo: &headerEdit, Layout: cpl.Grid{Columns: 2}, Children: form.HeaderEditWidgets()},
+									cpl.Composite{Visible: false, AssignTo: &zonObjEdit, Layout: cpl.Grid{Columns: 2}, Children: form.ZonObjEditWidgets()},
+									cpl.Composite{Visible: false, AssignTo: &modEdit, Layout: cpl.Grid{Columns: 2}, Children: form.ModEditWidgets()},
+									cpl.Composite{
+										Layout: cpl.HBox{},
+										Children: []cpl.Widget{
+											cpl.HSpacer{},
+											/*cpl.PushButton{
+												Text:      "Reset",
+												OnClicked: handler.EditResetInvoke,
+											},*/
+											cpl.PushButton{
+												Text:      "Save",
+												OnClicked: handler.EditSaveInvoke,
+												AssignTo:  &gui.editSave,
 											},
 										},
 									},
 								},
 							},
 						},
-						{
-							Title:    "Yaml",
-							AssignTo: &gui.yamlView,
-							Layout:   cpl.VBox{},
-							Children: []cpl.Widget{
-								cpl.Label{
-									Text: "A read only view of the selected node's contents. Useful for copy pasting to discord.",
-								},
-								cpl.TextEdit{
-									AssignTo:   &gui.contents,
-									ReadOnly:   true,
-									Enabled:    false,
-									VScroll:    true,
-									Background: cpl.SolidColorBrush{Color: wcolor.RGB(255, 255, 255)},
-								},
+					},
+					{
+						Title:    "Preview",
+						AssignTo: &gui.previewView,
+						Layout:   cpl.VBox{},
+						Children: []cpl.Widget{
+							cpl.Label{
+								Text: "A preview of the selected node's contents. Useful for copy pasting to discord.",
+							},
+
+							cpl.ImageView{
+								AssignTo: &gui.image,
+								Visible:  false,
+								Mode:     cpl.ImageViewModeZoom,
+							},
+						},
+					},
+					{
+						Title:    "Yaml",
+						AssignTo: &gui.yamlView,
+						Layout:   cpl.VBox{},
+						Children: []cpl.Widget{
+							cpl.Label{
+								Text: "A read only view of the selected node's contents. Useful for copy pasting to discord.",
+							},
+							cpl.TextEdit{
+								AssignTo:   &gui.contents,
+								ReadOnly:   true,
+								Enabled:    false,
+								VScroll:    true,
+								Background: cpl.SolidColorBrush{Color: wcolor.RGB(255, 255, 255)},
 							},
 						},
 					},
 				},
-				cpl.ProgressBar{
-					AssignTo: &gui.progress,
-					Visible:  false,
-					MaxValue: 100,
-					MinValue: 0,
-				},
-			}},
+			},
+			cpl.ProgressBar{
+				AssignTo: &gui.progress,
+				Visible:  false,
+				MaxValue: 100,
+				MinValue: 0,
+			},
 		},
 		AssignTo: &gui.mw,
 		StatusBarItems: []cpl.StatusBarItem{
@@ -490,12 +348,12 @@ func NewMainWindow(ctx context.Context, cancel context.CancelFunc, cfg *config.C
 	editViews["header"] = headerEdit
 	editViews["zon_obj"] = zonObjEdit
 	editViews[".mod"] = modEdit
+	editViews[".unk"] = unkEdit
 
-	gui.contents.SetText("Init")
-
-	filesSplit.SetMinMaxSizePixels(walk.Size{Width: 250, Height: 0}, walk.Size{Width: 300, Height: 0})
+	gui.contents.SetText("")
 
 	gui.table.SetModel(gui.fileView)
+	SetPageVisible(false, false, false)
 
 	return nil
 }
@@ -809,4 +667,43 @@ func onPreview() {
 	if err != nil {
 		slog.Print("Failed to start viewer: %s", err)
 	}
+}
+
+func SetPageVisible(isEditVisible bool, isPreviewVisible bool, isYamlVisible bool) {
+	if gui == nil {
+		return
+	}
+
+	gui.pageView.Pages().Remove(gui.editView)
+	gui.pageView.Pages().Remove(gui.previewView)
+	gui.pageView.Pages().Remove(gui.yamlView)
+
+	if isEditVisible {
+		gui.pageView.Pages().Add(gui.editView)
+	}
+	if isPreviewVisible {
+		gui.pageView.Pages().Add(gui.previewView)
+	}
+	if isYamlVisible {
+		gui.pageView.Pages().Add(gui.yamlView)
+	}
+	gui.pageView.SetBounds(gui.yamlView.Bounds())
+}
+
+func onNew() {
+	if gui == nil {
+		return
+	}
+	if activeEditor == nil {
+		slog.Printf("New failed: editor is nil\n")
+		return
+	}
+	node, err := activeEditor.New(nil)
+	if err != nil {
+		slog.Printf("New failed: %s\n", err)
+		return
+	}
+
+	gui.treeView.SetCurrentItem(node)
+	slog.Println("Added new node")
 }

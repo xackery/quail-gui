@@ -18,3 +18,6 @@ starteq.yml
 starteq.bat
 bin
 *.ini
+
+local.mod
+local.sum

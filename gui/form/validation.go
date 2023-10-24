@@ -35,6 +35,14 @@ func intValidate(in string, min int, max int) error {
 	return nil
 }
 
+func floatValidate(in string) error {
+	_, err := strconv.ParseFloat(in, 32)
+	if err != nil {
+		return fmt.Errorf("is not a number")
+	}
+	return nil
+}
+
 type layerMaterialValidator struct {
 }
 

@@ -16,6 +16,7 @@ var (
 )
 
 type HeaderEditor struct {
+	base         interface{}
 	src          *common.Header
 	node         *component.TreeNode
 	firstError   error
@@ -23,6 +24,7 @@ type HeaderEditor struct {
 	nameError    *walk.Label
 	version      *walk.LineEdit
 	versionError *walk.Label
+	versionMax   int
 }
 
 func showHeaderEditor(page *walk.TabPage, node *component.TreeNode) (Editor, error) {
@@ -37,6 +39,22 @@ func showHeaderEditor(page *walk.TabPage, node *component.TreeNode) (Editor, err
 	e.node = node
 	e.name.SetText(src.Name)
 	e.version.SetText(fmt.Sprintf("%d", src.Version))
+
+	parent := e.node.Parent()
+	if parent == nil {
+		return nil, fmt.Errorf("parent is nil")
+	}
+	parentTree, ok := parent.(*component.TreeNode)
+	if !ok {
+		return nil, fmt.Errorf("parent is not *component.TreeNode, instead %T", parent)
+	}
+	e.base = parentTree.Ref()
+	switch parentTree.Ref().(type) {
+	case *common.Wld:
+		e.versionMax = 0x1000C800
+	default:
+		e.versionMax = 3
+	}
 	return e, nil
 }
 
@@ -115,7 +133,7 @@ func (e *HeaderEditor) validateVersion() {
 		e.versionError.SetText("")
 	}()
 	value := e.version.Text()
-	err = intValidate(value, 0, 3)
+	err = intValidate(value, 0, e.versionMax)
 	if err != nil {
 		return
 	}
@@ -123,7 +141,9 @@ func (e *HeaderEditor) validateVersion() {
 
 func HeaderEditWidgets() []cpl.Widget {
 	if headerEditor == nil {
-		headerEditor = &HeaderEditor{}
+		headerEditor = &HeaderEditor{
+			versionMax: 3,
+		}
 	}
 	return []cpl.Widget{
 		cpl.Composite{
@@ -146,4 +166,24 @@ func HeaderEditWidgets() []cpl.Widget {
 			},
 		},
 	}
+}
+
+func (e *HeaderEditor) IsPreview() bool {
+	return false
+}
+
+func (e *HeaderEditor) IsYaml() bool {
+	return true
+}
+
+func (e *HeaderEditor) IsEdit() bool {
+	return true
+}
+
+func (e *HeaderEditor) New(src interface{}) (*component.TreeNode, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (e *HeaderEditor) Name() string {
+	return "Header"
 }

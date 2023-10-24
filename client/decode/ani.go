@@ -19,11 +19,13 @@ func Ani(name string, r io.ReadSeeker) (*component.TreeModel, error) {
 	treeModel := component.NewTreeModel()
 	treeModel.SetRef(anim)
 
-	treeModel.RootAdd(ico.Grab("header"), "Header", anim.Header)
+	root := treeModel.RootAdd(ico.Grab(".ani"), "Animation", anim)
 
-	root := treeModel.RootAdd(ico.Grab(".bon"), fmt.Sprintf("Bones (%d)", len(anim.Bones)), anim.Bones)
+	root.ChildAdd(ico.Grab("header"), "Header", anim.Header)
+
+	boneNode := root.ChildAdd(ico.Grab(".bon"), fmt.Sprintf("Bones (%d)", len(anim.Bones)), anim.Bones)
 	for _, bone := range anim.Bones {
-		child := root.ChildAdd(ico.Grab(".bon"), bone.Name, bone)
+		child := boneNode.ChildAdd(ico.Grab(".bon"), bone.Name, bone)
 		for i, frame := range bone.Frames {
 			child.ChildAdd(ico.Grab(".ani"), fmt.Sprintf("Frame %d", i), frame)
 		}
