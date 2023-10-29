@@ -15,19 +15,22 @@ var (
 )
 
 type ModEditor struct {
-	src  *common.Model
 	node *component.TreeNode
 }
 
 func showModEditor(page *walk.TabPage, node *component.TreeNode) (Editor, error) {
-	src, ok := node.Ref().(*common.Model)
+	_, ok := node.Ref().(*common.Model)
 	if !ok {
 		return nil, fmt.Errorf("node is not a model")
 	}
 
+	_, ok = node.RootRef().(*common.Model)
+	if !ok {
+		return nil, fmt.Errorf("root ref is not a model")
+	}
+
 	e := modEditor
 
-	e.src = src
 	e.node = node
 	return e, nil
 }
@@ -63,18 +66,6 @@ func ModEditWidgets() []cpl.Widget {
 			},
 		},
 	}
-}
-
-func (e *ModEditor) IsPreview() bool {
-	return true
-}
-
-func (e *ModEditor) IsYaml() bool {
-	return true
-}
-
-func (e *ModEditor) IsEdit() bool {
-	return false
 }
 
 func (e *ModEditor) New(src interface{}) (*component.TreeNode, error) {

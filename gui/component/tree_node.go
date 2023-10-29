@@ -11,6 +11,7 @@ type TreeNode struct {
 	parent   *TreeNode
 	icon     *walk.Bitmap
 	ref      interface{}
+	rootRef  interface{}
 	children []*TreeNode
 	isEdited bool
 }
@@ -69,11 +70,12 @@ func (tn *TreeNode) ResetChildren() error {
 }
 
 // ChildAdd adds a child to a tree node
-func (tn *TreeNode) ChildAdd(icon *walk.Bitmap, name string, ref interface{}) *TreeNode {
+func (tn *TreeNode) ChildAdd(icon *walk.Bitmap, name string, rootRef interface{}, ref interface{}) *TreeNode {
 	child := new(TreeNode)
 	child.parent = tn
 	child.name = name
 	child.icon = icon
+	child.rootRef = rootRef
 	child.ref = ref
 	tn.children = append(tn.children, child)
 	return child
@@ -102,6 +104,14 @@ func (tn *TreeNode) Ref() interface{} {
 // SetRef sets the ref of a tree node
 func (tn *TreeNode) SetRef(ref interface{}) {
 	tn.ref = ref
+}
+
+func (tn *TreeNode) RootRef() interface{} {
+	return tn.rootRef
+}
+
+func (tn *TreeNode) SetRootRef(ref interface{}) {
+	tn.rootRef = ref
 }
 
 // RemoveChild removes a child from a tree node

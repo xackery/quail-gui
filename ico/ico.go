@@ -12,9 +12,9 @@ import (
 
 	ico "github.com/biessek/golang-ico"
 	"github.com/malashin/dds"
+	"github.com/sergeymakinen/go-bmp"
 	"github.com/xackery/quail-gui/slog"
 	"github.com/xackery/wlk/walk"
-	"golang.org/x/image/bmp"
 	"golang.org/x/image/draw"
 )
 
@@ -57,12 +57,9 @@ var (
 	regionIco []byte
 	//go:embed assets/preview.ico
 	previewIco []byte
+	icos       map[string]*walk.Bitmap
 
-	icos map[string]*walk.Bitmap
-)
-
-func init() {
-	icoMap := map[string][]byte{
+	icoMap = map[string][]byte{
 		".ani":    aniIco,
 		".mds":    mdsIco,
 		".lay":    layIco,
@@ -83,6 +80,10 @@ func init() {
 		"region":  regionIco,
 		"preview": previewIco,
 	}
+)
+
+func init() {
+
 	icos = make(map[string]*walk.Bitmap)
 	for ext, icoData := range icoMap {
 		img, err := ico.Decode(bytes.NewReader(icoData))
@@ -111,6 +112,11 @@ func Grab(name string) *walk.Bitmap {
 func Generate(name string, data []byte) *walk.Bitmap {
 	var err error
 
+	wBmp, ok := icos[name]
+	if ok {
+		return wBmp
+	}
+
 	ext := strings.ToLower(filepath.Ext(name))
 	defer func() {
 		if err != nil {
@@ -119,7 +125,7 @@ func Generate(name string, data []byte) *walk.Bitmap {
 		}
 	}()
 
-	wBmp := Grab(ext)
+	wBmp = Grab(ext)
 	if wBmp != nil && ext != ".unk" {
 		return wBmp
 	}
@@ -195,4 +201,13 @@ func Generate(name string, data []byte) *walk.Bitmap {
 	fmt.Println("unk ext", ext, unkImg)
 
 	return unkImg
+}
+
+// Clear is used to flush an ico or generate cache
+func Clear(name string) {
+	_, ok := icoMap[name]
+	if ok {
+		return
+	}
+	delete(icos, name)
 }

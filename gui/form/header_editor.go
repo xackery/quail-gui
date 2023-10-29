@@ -16,8 +16,8 @@ var (
 )
 
 type HeaderEditor struct {
-	base         interface{}
-	src          *common.Header
+	rootRef      interface{}
+	ref          *common.Header
 	node         *component.TreeNode
 	firstError   error
 	name         *walk.LineEdit
@@ -35,7 +35,8 @@ func showHeaderEditor(page *walk.TabPage, node *component.TreeNode) (Editor, err
 
 	e := headerEditor
 
-	e.src = src
+	e.ref = src
+	e.rootRef = node.RootRef()
 	e.node = node
 	e.name.SetText(src.Name)
 	e.version.SetText(fmt.Sprintf("%d", src.Version))
@@ -48,7 +49,7 @@ func showHeaderEditor(page *walk.TabPage, node *component.TreeNode) (Editor, err
 	if !ok {
 		return nil, fmt.Errorf("parent is not *component.TreeNode, instead %T", parent)
 	}
-	e.base = parentTree.Ref()
+	e.rootRef = parentTree.Ref()
 	switch parentTree.Ref().(type) {
 	case *common.Wld:
 		e.versionMax = 0x1000C800
@@ -67,19 +68,19 @@ func (e *HeaderEditor) Save() error {
 		return fmt.Errorf("validation failed: %w", e.firstError)
 	}
 
-	e.src.Name = e.name.Text()
+	e.ref.Name = e.name.Text()
 	val, err := strconv.Atoi(e.version.Text())
 	if err != nil {
 		return fmt.Errorf("version is not a number")
 	}
-	e.src.Version = val
+	e.ref.Version = val
 	return nil
 }
 
 func (e *HeaderEditor) Reset() {
 	e.ClearError()
-	e.name.SetText(e.src.Name)
-	e.version.SetText(fmt.Sprintf("%d", e.src.Version))
+	e.name.SetText(e.ref.Name)
+	e.version.SetText(fmt.Sprintf("%d", e.ref.Version))
 }
 
 func (e *HeaderEditor) Node() *component.TreeNode {
@@ -166,18 +167,6 @@ func HeaderEditWidgets() []cpl.Widget {
 			},
 		},
 	}
-}
-
-func (e *HeaderEditor) IsPreview() bool {
-	return false
-}
-
-func (e *HeaderEditor) IsYaml() bool {
-	return true
-}
-
-func (e *HeaderEditor) IsEdit() bool {
-	return true
 }
 
 func (e *HeaderEditor) New(src interface{}) (*component.TreeNode, error) {

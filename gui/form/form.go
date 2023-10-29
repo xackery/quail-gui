@@ -16,9 +16,6 @@ type Editor interface {
 	Ext() string
 	Reset()
 	Node() *component.TreeNode
-	IsEdit() bool
-	IsYaml() bool
-	IsPreview() bool
 }
 
 // ShowEditor opens a form that let's you edit various components from the tree view

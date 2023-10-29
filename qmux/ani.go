@@ -1,4 +1,4 @@
-package decode
+package qmux
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 	"github.com/xackery/quail/model/metadata/ani"
 )
 
-func Ani(name string, r io.ReadSeeker) (*component.TreeModel, error) {
+func AniDecode(name string, r io.ReadSeeker) (*component.TreeModel, error) {
 	anim := common.NewAnimation(name)
 	err := ani.Decode(anim, r)
 	if err != nil {
@@ -19,15 +19,15 @@ func Ani(name string, r io.ReadSeeker) (*component.TreeModel, error) {
 	treeModel := component.NewTreeModel()
 	treeModel.SetRef(anim)
 
-	root := treeModel.RootAdd(ico.Grab(".ani"), "Animation", anim)
+	root := treeModel.RootAdd(ico.Grab(".ani"), "Animation", anim, anim)
 
-	root.ChildAdd(ico.Grab("header"), "Header", anim.Header)
+	root.ChildAdd(ico.Grab("header"), "Header", anim, anim.Header)
 
-	boneNode := root.ChildAdd(ico.Grab(".bon"), fmt.Sprintf("Bones (%d)", len(anim.Bones)), anim.Bones)
+	boneNode := root.ChildAdd(ico.Grab(".bon"), fmt.Sprintf("Bones (%d)", len(anim.Bones)), anim, anim.Bones)
 	for _, bone := range anim.Bones {
-		child := boneNode.ChildAdd(ico.Grab(".bon"), bone.Name, bone)
+		child := boneNode.ChildAdd(ico.Grab(".bon"), bone.Name, anim, bone)
 		for i, frame := range bone.Frames {
-			child.ChildAdd(ico.Grab(".ani"), fmt.Sprintf("Frame %d", i), frame)
+			child.ChildAdd(ico.Grab(".ani"), fmt.Sprintf("Frame %d", i), anim, frame)
 		}
 	}
 

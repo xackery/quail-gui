@@ -1,4 +1,4 @@
-package decode
+package qmux
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 	"github.com/xackery/quail/model/metadata/pts"
 )
 
-func Pts(name string, r io.ReadSeeker) (*component.TreeModel, error) {
+func PtsDecode(name string, r io.ReadSeeker) (*component.TreeModel, error) {
 	point := common.NewParticlePoint(name)
 	err := pts.Decode(point, r)
 	if err != nil {
@@ -19,12 +19,12 @@ func Pts(name string, r io.ReadSeeker) (*component.TreeModel, error) {
 	treeModel := component.NewTreeModel()
 	treeModel.SetRef(point)
 
-	root := treeModel.RootAdd(ico.Grab(".pts"), "Particle Point", point)
+	root := treeModel.RootAdd(ico.Grab(".pts"), "Particle Point", point, point)
 
-	root.ChildAdd(ico.Grab("header"), "Header", point.Header)
-	pointNode := root.ChildAdd(ico.Grab(".pts"), "Point Entries", point.Entries)
+	root.ChildAdd(ico.Grab("header"), "Header", point, point.Header)
+	pointNode := root.ChildAdd(ico.Grab(".pts"), "Point Entries", point, point.Entries)
 	for _, entry := range point.Entries {
-		pointNode.ChildAdd(ico.Grab(".pts"), entry.Name, entry)
+		pointNode.ChildAdd(ico.Grab(".pts"), entry.Name, point, entry)
 	}
 
 	return treeModel, nil

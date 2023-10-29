@@ -8,6 +8,7 @@ import (
 	"github.com/xackery/quail-gui/gui/component"
 	"github.com/xackery/quail-gui/gui/form"
 	"github.com/xackery/quail-gui/slog"
+	"github.com/xackery/quail-gui/treeop"
 	"github.com/xackery/wlk/cpl"
 	"github.com/xackery/wlk/walk"
 	"gopkg.in/yaml.v2"
@@ -15,9 +16,10 @@ import (
 
 func treeWidget() cpl.Widget {
 	return cpl.TreeView{
-		AssignTo: &gui.treeView,
-		Visible:  true,
-		Model:    gui.treeModel,
+		AssignTo:        &gui.treeView,
+		Visible:         true,
+		Model:           gui.treeModel,
+		DoubleBuffering: true,
 		ContextMenuItems: []cpl.MenuItem{
 			cpl.Action{
 				AssignTo:    &gui.newContext,
@@ -30,9 +32,40 @@ func treeWidget() cpl.Widget {
 					gui.treeModel.ItemsReset()
 				},
 			},
+			cpl.Action{
+				Text: "Delete",
+				OnTriggered: func() {
+					node := gui.treeView.CurrentItem().(*component.TreeNode)
+					if node == nil {
+						slog.Printf("Failed to delete: node is nil\n")
+						return
+					}
+					err := treeop.Delete(node)
+					if err != nil {
+						slog.Printf("Failed to delete %s: %s\n", node.Name(), err)
+						return
+					}
+				},
+			},
 		},
 		OnCurrentItemChanged: func() {
 			node := gui.treeView.CurrentItem().(*component.TreeNode)
+			if node == nil {
+				slog.Printf("Failed to edit: node is nil\n")
+				return
+			}
+			SetImage(nil)
+			// check for .dds, .png, .bmp
+			if strings.HasSuffix(node.Name(), ".dds") || strings.HasSuffix(node.Name(), ".png") || strings.HasSuffix(node.Name(), ".bmp") {
+				err := imagePreview(node.Name(), node.Ref())
+				if err != nil {
+					slog.Printf("Failed to preview image: %s\n", err)
+					editViewChange(fmt.Sprintf("Select a valid node to edit on left. %T is not yet supported", node.Ref()), ".unk")
+					return
+				}
+				editViewChange(fmt.Sprintf("Select a valid node to edit on left. %T is not yet supported", node.Ref()), ".unk")
+				return
+			}
 
 			buf := bytes.NewBuffer(nil)
 			enc := yaml.NewEncoder(buf)
@@ -41,53 +74,33 @@ func treeWidget() cpl.Widget {
 			err := enc.Encode(node.Ref())
 			if err != nil {
 				slog.Printf("yaml encode: %s\n", err)
+				editViewChange(fmt.Sprintf("Select a valid node to edit on left. %T is not yet supported", node.Ref()), ".unk")
 				return
 			}
 
-			gui.editSave.SetEnabled(false)
 			gui.contents.SetText(strings.ReplaceAll(buf.String(), "\n", "\r\n"))
 			editor, err := form.ShowEditor(gui.editView, node)
 			if err != nil {
 				slog.Printf("Failed editing: %s\n", err)
-				for _, view := range editViews {
-					if view == nil {
-						continue
-					}
-					view.SetVisible(false)
-				}
-				editViews[".unk"].SetVisible(true)
-				gui.titleEdit.SetText(fmt.Sprintf("Select a valid node to edit on left. %T is not yet supported", node.Ref()))
-				SetPageVisible(false, false, false)
+				activeEditor = nil
+				editViewChange(fmt.Sprintf("Select a valid node to edit on left. %T is not yet supported", node.Ref()), ".unk")
 				return
 			}
+			activeEditor = editor
 			ext := editor.Ext()
 			editView, ok := editViews[ext]
 			if !ok {
 				slog.Printf("Failed finding edit view %s\n", ext)
-				gui.titleEdit.SetText(fmt.Sprintf("Select a valid node to edit on left. %T is not yet supported", node.Ref()))
-				editViews[".unk"].SetVisible(true)
-				SetPageVisible(false, false, false)
+				editViewChange(fmt.Sprintf("Select a valid node to edit on left. %T is not yet supported", node.Ref()), ".unk")
 				return
 			}
 			if editView == nil {
 				slog.Printf("Failed edit view is nil %s\n", ext)
-				gui.titleEdit.SetText(fmt.Sprintf("Select a valid node to edit on left. %T is not yet supported", node.Ref()))
-				editViews[".unk"].SetVisible(true)
-				SetPageVisible(false, false, false)
+				editViewChange(fmt.Sprintf("Select a valid node to edit on left. %T is not yet supported", node.Ref()), ".unk")
 				return
 			}
-			for _, view := range editViews {
-				if view == nil {
-					continue
-				}
-				view.SetVisible(false)
-			}
-			activeEditor = editor
+			editViewChange(fmt.Sprintf("Editing node %T. Press Save to apply changes.", node.Ref()), ext)
 			gui.newContext.SetText(fmt.Sprintf("New %s", activeEditor.Name()))
-			SetPageVisible(activeEditor.IsEdit(), activeEditor.IsYaml(), activeEditor.IsPreview())
-			gui.titleEdit.SetText(fmt.Sprintf("Editing node %T. Press Save to apply changes.", node.Ref()))
-			editView.SetVisible(true)
-			gui.editSave.SetEnabled(true)
 		},
 		OnKeyDown: func(key walk.Key) {
 			if key == walk.KeyDelete {

@@ -30,10 +30,8 @@ type Gui struct {
 	exportSelected *walk.Action
 	fileView       *component.FileView
 	fileEntries    []*component.FileViewEntry
-	contentsLabel  *walk.Label
 	contents       *walk.TextEdit
 	image          *walk.ImageView
-	imageLabel     *walk.Label
 	statusBar      *walk.StatusBarItem
 	treeView       *walk.TreeView
 	treeModel      *component.TreeModel
@@ -291,13 +289,13 @@ func NewMainWindow(ctx context.Context, cancel context.CancelFunc, cfg *config.C
 						Layout:   cpl.VBox{},
 						Children: []cpl.Widget{
 							cpl.Label{
-								Text: "A preview of the selected node's contents. Useful for copy pasting to discord.",
+								Text: "",
 							},
 
 							cpl.ImageView{
 								AssignTo: &gui.image,
-								Visible:  false,
-								Mode:     cpl.ImageViewModeZoom,
+								Visible:  true,
+								Mode:     cpl.ImageViewModeIdeal,
 							},
 						},
 					},
@@ -312,7 +310,7 @@ func NewMainWindow(ctx context.Context, cancel context.CancelFunc, cfg *config.C
 							cpl.TextEdit{
 								AssignTo:   &gui.contents,
 								ReadOnly:   true,
-								Enabled:    false,
+								Enabled:    true,
 								VScroll:    true,
 								Background: cpl.SolidColorBrush{Color: wcolor.RGB(255, 255, 255)},
 							},
@@ -353,7 +351,6 @@ func NewMainWindow(ctx context.Context, cancel context.CancelFunc, cfg *config.C
 	gui.contents.SetText("")
 
 	gui.table.SetModel(gui.fileView)
-	SetPageVisible(false, false, false)
 
 	return nil
 }
@@ -561,17 +558,13 @@ func SetImage(image walk.Image) {
 	fmt.Println("image change", image)
 	if image == nil {
 		gui.image.SetImage(nil)
-		gui.imageLabel.SetText("")
 		gui.image.SetVisible(false)
 		gui.contents.SetVisible(true)
-		gui.contentsLabel.SetVisible(true)
 		return
 	}
 	gui.image.SetImage(image)
-	gui.imageLabel.SetText("Image")
 	gui.image.SetVisible(true)
 	gui.contents.SetVisible(false)
-	gui.contentsLabel.SetVisible(false)
 }
 
 func SetTreeModel(model *component.TreeModel) {
@@ -669,27 +662,6 @@ func onPreview() {
 	}
 }
 
-func SetPageVisible(isEditVisible bool, isPreviewVisible bool, isYamlVisible bool) {
-	if gui == nil {
-		return
-	}
-
-	gui.pageView.Pages().Remove(gui.editView)
-	gui.pageView.Pages().Remove(gui.previewView)
-	gui.pageView.Pages().Remove(gui.yamlView)
-
-	if isEditVisible {
-		gui.pageView.Pages().Add(gui.editView)
-	}
-	if isPreviewVisible {
-		gui.pageView.Pages().Add(gui.previewView)
-	}
-	if isYamlVisible {
-		gui.pageView.Pages().Add(gui.yamlView)
-	}
-	gui.pageView.SetBounds(gui.yamlView.Bounds())
-}
-
 func onNew() {
 	if gui == nil {
 		return
@@ -706,4 +678,20 @@ func onNew() {
 
 	gui.treeView.SetCurrentItem(node)
 	slog.Println("Added new node")
+}
+
+func editViewChange(title string, name string) {
+	for _, view := range editViews {
+		if view == nil {
+			continue
+		}
+		view.SetVisible(false)
+	}
+	editView, ok := editViews[name]
+	if !ok {
+		name = ".unk"
+		editView = editViews[name]
+	}
+	editView.SetVisible(true)
+	gui.editSave.SetEnabled(name != ".unk")
 }

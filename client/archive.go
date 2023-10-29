@@ -10,10 +10,10 @@ import (
 	"time"
 
 	"github.com/xackery/quail-gui/archive"
-	"github.com/xackery/quail-gui/client/decode"
 	"github.com/xackery/quail-gui/gui"
 	"github.com/xackery/quail-gui/gui/component"
 	"github.com/xackery/quail-gui/ico"
+	"github.com/xackery/quail-gui/qmux"
 	"github.com/xackery/quail-gui/slog"
 )
 
@@ -75,14 +75,14 @@ func (c *Client) open(path string, file string, isSelect bool) error {
 	}
 
 	validExts := []validExt{
-		{".lay", decode.Lay},
-		{".mod", decode.Mod},
-		{".ter", decode.Ter},
-		{".pts", decode.Pts},
-		{".prt", decode.Prt},
-		{".ani", decode.Ani},
-		{".zon", decode.Zon},
-		{".wld", decode.Wld},
+		{".lay", qmux.LayDecode},
+		{".mod", qmux.ModDecode},
+		{".ter", qmux.TerDecode},
+		{".pts", qmux.PtsDecode},
+		{".prt", qmux.PrtDecode},
+		{".ani", qmux.AniDecode},
+		{".zon", qmux.ZonDecode},
+		{".wld", qmux.WldDecode},
 	}
 
 	for _, ve := range validExts {

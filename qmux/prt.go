@@ -1,4 +1,4 @@
-package decode
+package qmux
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 	"github.com/xackery/quail/model/metadata/prt"
 )
 
-func Prt(name string, r io.ReadSeeker) (*component.TreeModel, error) {
+func PrtDecode(name string, r io.ReadSeeker) (*component.TreeModel, error) {
 	render := common.NewParticleRender(name)
 	err := prt.Decode(render, r)
 	if err != nil {
@@ -19,10 +19,10 @@ func Prt(name string, r io.ReadSeeker) (*component.TreeModel, error) {
 	treeModel := component.NewTreeModel()
 	treeModel.SetRef(render)
 
-	treeModel.RootAdd(ico.Grab("header"), "Header", render.Header)
-	root := treeModel.RootAdd(ico.Grab(".prt"), "Renders", render.Entries)
+	treeModel.RootAdd(ico.Grab("header"), "Header", render, render.Header)
+	root := treeModel.RootAdd(ico.Grab(".prt"), "Renders", render, render.Entries)
 	for _, entry := range render.Entries {
-		root.ChildAdd(ico.Grab(".prt"), entry.ParticlePoint, entry)
+		root.ChildAdd(ico.Grab(".prt"), entry.ParticlePoint, render, entry)
 	}
 
 	return treeModel, nil

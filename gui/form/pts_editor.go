@@ -20,8 +20,6 @@ var (
 )
 
 type PtsEditor struct {
-	base             *common.ParticlePoint
-	src              *common.ParticlePointEntry
 	node             *component.TreeNode
 	firstError       error
 	name             *walk.LineEdit
@@ -43,34 +41,20 @@ type PtsEditor struct {
 }
 
 func showPtsEditor(page *walk.TabPage, node *component.TreeNode) (Editor, error) {
-	src, ok := node.Ref().(*common.ParticlePointEntry)
+	_, ok := node.Ref().(*common.ParticlePointEntry)
 	if !ok {
 		return nil, fmt.Errorf("node is not a particle point entry")
 	}
 
+	_, ok = node.RootRef().(*common.ParticlePoint)
+	if !ok {
+		return nil, fmt.Errorf("root ref is not a particle point")
+	}
+
 	e := ptsEditor
-	e.src = src
 	e.node = node
 	e.Reset()
 
-	parent := e.node.Parent()
-	if parent == nil {
-		return nil, fmt.Errorf("parent is nil")
-	}
-	parentTree, ok := parent.(*component.TreeNode)
-	if !ok {
-		return nil, fmt.Errorf("parent is not *component.TreeNode, instead %T", parent)
-	}
-	parent = parentTree.Parent()
-	parentTree, ok = parent.(*component.TreeNode)
-	if !ok {
-		return nil, fmt.Errorf("parent is not *component.TreeNode, instead %T", parent)
-	}
-
-	e.base, ok = parentTree.Ref().(*common.ParticlePoint)
-	if !ok {
-		return nil, fmt.Errorf("parent is not *common.ParticlePoint, instead %T", parentTree.Ref())
-	}
 	return e, nil
 }
 
@@ -93,19 +77,29 @@ func (e *PtsEditor) Save() error {
 		return fmt.Errorf("validation failed: %w", e.firstError)
 	}
 
-	e.src.Name = e.name.Text()
-	e.src.BoneName = e.boneName.Text()
-	e.src.Rotation.X = fastFloat32(e.rotationX.Text())
-	e.src.Rotation.Y = fastFloat32(e.rotationY.Text())
-	e.src.Rotation.Z = fastFloat32(e.rotationZ.Text())
-	e.src.Scale.X = fastFloat32(e.scaleX.Text())
-	e.src.Scale.Y = fastFloat32(e.scaleY.Text())
-	e.src.Scale.Z = fastFloat32(e.scaleZ.Text())
+	src, ok := e.node.Ref().(*common.ParticlePointEntry)
+	if !ok {
+		return fmt.Errorf("node is not a particle point entry")
+	}
 
-	slog.Printf("Saving %+v\n", e.src)
+	base, ok := e.node.RootRef().(*common.ParticlePoint)
+	if !ok {
+		return fmt.Errorf("root ref is not a particle point")
+	}
+
+	src.Name = e.name.Text()
+	src.BoneName = e.boneName.Text()
+	src.Rotation.X = fastFloat32(e.rotationX.Text())
+	src.Rotation.Y = fastFloat32(e.rotationY.Text())
+	src.Rotation.Z = fastFloat32(e.rotationZ.Text())
+	src.Scale.X = fastFloat32(e.scaleX.Text())
+	src.Scale.Y = fastFloat32(e.scaleY.Text())
+	src.Scale.Z = fastFloat32(e.scaleZ.Text())
+
+	slog.Printf("Saving %+v\n", src)
 
 	buf := bytes.NewBuffer(nil)
-	err := pts.Encode(e.base, uint32(e.base.Header.Version), buf)
+	err := pts.Encode(base, uint32(base.Header.Version), buf)
 	if err != nil {
 		return fmt.Errorf("encode: %w", err)
 	}
@@ -120,23 +114,27 @@ func (e *PtsEditor) Save() error {
 		return fmt.Errorf("save: %w", err)
 	}
 
-	e.node.SetName(e.src.Name)
+	e.node.SetName(src.Name)
 	return nil
 }
 
 func (e *PtsEditor) Reset() {
 	e.ClearError()
-	e.name.SetText(e.src.Name)
-	e.boneName.SetText(e.src.BoneName)
-	e.translationX.SetText(fmt.Sprintf("%f", e.src.Translation.X))
-	e.translationY.SetText(fmt.Sprintf("%f", e.src.Translation.Y))
-	e.translationZ.SetText(fmt.Sprintf("%f", e.src.Translation.Z))
-	e.rotationX.SetText(fmt.Sprintf("%f", e.src.Rotation.X))
-	e.rotationY.SetText(fmt.Sprintf("%f", e.src.Rotation.Y))
-	e.rotationZ.SetText(fmt.Sprintf("%f", e.src.Rotation.Z))
-	e.scaleX.SetText(fmt.Sprintf("%f", e.src.Scale.X))
-	e.scaleY.SetText(fmt.Sprintf("%f", e.src.Scale.Y))
-	e.scaleZ.SetText(fmt.Sprintf("%f", e.src.Scale.Z))
+	src, ok := e.node.Ref().(*common.ParticlePointEntry)
+	if !ok {
+		return
+	}
+	e.name.SetText(src.Name)
+	e.boneName.SetText(src.BoneName)
+	e.translationX.SetText(fmt.Sprintf("%f", src.Translation.X))
+	e.translationY.SetText(fmt.Sprintf("%f", src.Translation.Y))
+	e.translationZ.SetText(fmt.Sprintf("%f", src.Translation.Z))
+	e.rotationX.SetText(fmt.Sprintf("%f", src.Rotation.X))
+	e.rotationY.SetText(fmt.Sprintf("%f", src.Rotation.Y))
+	e.rotationZ.SetText(fmt.Sprintf("%f", src.Rotation.Z))
+	e.scaleX.SetText(fmt.Sprintf("%f", src.Scale.X))
+	e.scaleY.SetText(fmt.Sprintf("%f", src.Scale.Y))
+	e.scaleZ.SetText(fmt.Sprintf("%f", src.Scale.Z))
 }
 
 func (e *PtsEditor) Node() *component.TreeNode {
@@ -425,18 +423,6 @@ func PtsEditWidgets() []cpl.Widget {
 	}
 }
 
-func (e *PtsEditor) IsPreview() bool {
-	return false
-}
-
-func (e *PtsEditor) IsYaml() bool {
-	return true
-}
-
-func (e *PtsEditor) IsEdit() bool {
-	return true
-}
-
 func (e *PtsEditor) New(src interface{}) (*component.TreeNode, error) {
 	entry := &common.ParticlePointEntry{
 		Name: "New Particle Point Entry",
@@ -449,9 +435,14 @@ func (e *PtsEditor) New(src interface{}) (*component.TreeNode, error) {
 		entry.Scale = srcEntry.Scale
 	}
 
-	e.base.Entries = append(e.base.Entries, entry)
-	slog.Printf("entries: %+v\n", e.base.Entries)
-	node := e.node.Parent().(*component.TreeNode).ChildAdd(ico.Grab(".pts"), entry.Name, entry)
+	base, ok := e.node.RootRef().(*common.ParticlePoint)
+	if !ok {
+		return nil, fmt.Errorf("root ref is not a particle point")
+	}
+
+	base.Entries = append(base.Entries, entry)
+	slog.Printf("entries: %+v\n", base.Entries)
+	node := e.node.Parent().(*component.TreeNode).ChildAdd(ico.Grab(".pts"), entry.Name, base, entry)
 	return node, nil
 }
 

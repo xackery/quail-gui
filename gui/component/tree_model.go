@@ -30,10 +30,11 @@ func (tm *TreeModel) RootAt(index int) walk.TreeItem {
 }
 
 // RootAdd adds a root to the tree model
-func (tm *TreeModel) RootAdd(icon *walk.Bitmap, name string, ref interface{}) *TreeNode {
+func (tm *TreeModel) RootAdd(icon *walk.Bitmap, name string, rootRef interface{}, ref interface{}) *TreeNode {
 	root := new(TreeNode)
 	root.name = name
 	root.icon = icon
+	root.rootRef = rootRef
 	root.ref = ref
 	tm.roots = append(tm.roots, root)
 	return root

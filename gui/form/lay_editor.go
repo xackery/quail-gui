@@ -22,8 +22,6 @@ var (
 )
 
 type LayEditor struct {
-	base          *common.Model
-	src           *common.Layer
 	node          *component.TreeNode
 	firstError    error
 	material      *walk.LineEdit
@@ -35,37 +33,17 @@ type LayEditor struct {
 }
 
 func showLayEditor(page *walk.TabPage, node *component.TreeNode) (Editor, error) {
-	src, ok := node.Ref().(*common.Layer)
+	_, ok := node.Ref().(*common.Layer)
 	if !ok {
 		return nil, fmt.Errorf("node is not a layer")
 	}
-
+	_, ok = node.RootRef().(*common.Model)
+	if !ok {
+		return nil, fmt.Errorf("root ref is not a model")
+	}
 	e := layEditor
-
-	e.src = src
 	e.node = node
 	e.Reset()
-	parent := e.node.Parent()
-	if parent == nil {
-		return nil, fmt.Errorf("parent is nil")
-	}
-	parentTree, ok := parent.(*component.TreeNode)
-	if !ok {
-		return nil, fmt.Errorf("parent is not *component.TreeNode, instead %T", parent)
-	}
-	_, ok = parentTree.Ref().([]*common.Layer)
-	if !ok {
-		return nil, fmt.Errorf("parent is not []*common.Layer, instead %T", parentTree.Ref())
-	}
-	parent = parentTree.Parent()
-	parentTree, ok = parent.(*component.TreeNode)
-	if !ok {
-		return nil, fmt.Errorf("parent is not *component.TreeNode, instead %T", parent)
-	}
-	e.base, ok = parentTree.Ref().(*common.Model)
-	if !ok {
-		return nil, fmt.Errorf("parent is not *common.Model, instead %T", parentTree.Ref())
-	}
 	return e, nil
 }
 
@@ -80,15 +58,24 @@ func (e *LayEditor) Save() error {
 		return fmt.Errorf("validation failed: %w", e.firstError)
 	}
 
-	e.src.Diffuse = e.diffuse.Text()
-	e.src.Normal = e.normal.Text()
-	e.src.Material = e.material.Text()
+	src, ok := e.node.Ref().(*common.Layer)
+	if !ok {
+		return fmt.Errorf("node is not a layer")
+	}
+	base, ok := e.node.RootRef().(*common.Model)
+	if !ok {
+		return fmt.Errorf("root ref is not a model")
+	}
 
-	slog.Printf("Saving %+v\n", e.src)
-	slog.Printf("model: %+v\n", e.base)
+	src.Diffuse = e.diffuse.Text()
+	src.Normal = e.normal.Text()
+	src.Material = e.material.Text()
+
+	slog.Printf("Saving %+v\n", src)
+	slog.Printf("model: %+v\n", base)
 
 	buf := bytes.NewBuffer(nil)
-	err := lay.Encode(e.base, buf)
+	err := lay.Encode(base, buf)
 	if err != nil {
 		return fmt.Errorf("encode: %w", err)
 	}
@@ -103,16 +90,21 @@ func (e *LayEditor) Save() error {
 		return fmt.Errorf("save: %w", err)
 	}
 
-	e.node.SetName(e.src.Material)
+	e.node.SetName(src.Material)
 
 	return nil
 }
 
 func (e *LayEditor) Reset() {
 	e.ClearError()
-	e.diffuse.SetText(e.src.Diffuse)
-	e.normal.SetText(e.src.Normal)
-	e.material.SetText(e.src.Material)
+	src, ok := e.node.Ref().(*common.Layer)
+	if !ok {
+		return
+	}
+
+	e.diffuse.SetText(src.Diffuse)
+	e.normal.SetText(src.Normal)
+	e.material.SetText(src.Material)
 }
 
 func (e *LayEditor) Node() *component.TreeNode {
@@ -229,18 +221,6 @@ func LayEditWidgets() []cpl.Widget {
 	}
 }
 
-func (e *LayEditor) IsPreview() bool {
-	return false
-}
-
-func (e *LayEditor) IsYaml() bool {
-	return true
-}
-
-func (e *LayEditor) IsEdit() bool {
-	return true
-}
-
 func (e *LayEditor) New(src interface{}) (*component.TreeNode, error) {
 	layer := &common.Layer{
 		Material: "New Material",
@@ -252,9 +232,14 @@ func (e *LayEditor) New(src interface{}) (*component.TreeNode, error) {
 		layer.Normal = srcLayer.Normal
 	}
 
-	e.base.Layers = append(e.base.Layers, layer)
-	slog.Printf("layers: %+v\n", e.base.Layers)
-	node := e.node.Parent().(*component.TreeNode).ChildAdd(ico.Grab(".lay"), layer.Material, layer)
+	base, ok := e.node.RootRef().(*common.Model)
+	if !ok {
+		return nil, fmt.Errorf("root ref is not a model")
+	}
+
+	base.Layers = append(base.Layers, layer)
+	slog.Printf("layers: %+v\n", base.Layers)
+	node := e.node.Parent().(*component.TreeNode).ChildAdd(ico.Grab(".lay"), layer.Material, base, layer)
 	return node, nil
 }
 
