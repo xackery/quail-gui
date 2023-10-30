@@ -110,3 +110,7 @@ func (m *FileView) SetItems(items []*FileViewEntry) {
 
 	m.Sort(m.sortColumn, m.sortOrder)
 }
+
+func (m *FileView) Item(row int) *FileViewEntry {
+	return m.items[row]
+}

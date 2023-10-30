@@ -1,0 +1,6 @@
+{
+    "go.toolsEnvVars": {
+        "GOOS": "windows",
+    },
+    "files.trimTrailingWhitespace": true,
+}

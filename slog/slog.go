@@ -3,6 +3,8 @@ package slog
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 )
 
@@ -27,12 +29,27 @@ func AddHandler(handler func(format string, a ...interface{})) {
 }
 
 // Dump writes the log to a file
-func Dump(path string) error {
+func Dump() error {
 	mu.RLock()
 	defer mu.RUnlock()
 	if len(cacheLog) == 0 {
 		return nil
 	}
+	exeName, err := os.Executable()
+	if err != nil {
+		exeName = "quail-gui.exe"
+	}
+
+	baseName := filepath.Base(exeName)
+	if strings.Contains(baseName, ".") {
+		baseName = baseName[0:strings.Index(baseName, ".")]
+	}
+	if len(baseName) == 0 {
+		baseName = "quail-gui"
+	}
+
+	path := baseName + ".txt"
+
 	if !isDumped {
 		err := os.WriteFile(path, []byte(cacheLog), os.ModePerm)
 		if err != nil {

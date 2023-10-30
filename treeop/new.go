@@ -1,5 +1,0 @@
-package treeop
-
-func New() {
-
-}

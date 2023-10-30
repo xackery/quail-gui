@@ -1,63 +1,46 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	_ "embed"
 
-	"github.com/xackery/quail-gui/client"
-	"github.com/xackery/quail-gui/config"
 	"github.com/xackery/quail-gui/gui"
-	"github.com/xackery/quail-gui/gui/handler"
 	"github.com/xackery/quail-gui/slog"
-	"github.com/xackery/wlk/walk"
 )
 
 var (
-	Version    string
-	PatcherUrl string
+	Version string
 )
 
 func main() {
+	start := time.Now()
 	if Version == "" {
 		Version = "0.0.1"
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	exeName, err := os.Executable()
 	if err != nil {
-		gui.MessageBox("Error", "Failed to get executable name", true)
+		gui.ShowMessageBox("Error", "Failed to get executable name", true)
 		os.Exit(1)
 	}
 	baseName := filepath.Base(exeName)
 	if strings.Contains(baseName, ".") {
 		baseName = baseName[0:strings.Index(baseName, ".")]
 	}
-	cfg, err := config.New(context.Background(), baseName)
-	if err != nil {
-		slog.Printf("Failed to load config: %s", err.Error())
-		os.Exit(1)
-	}
 
-	err = gui.NewMainWindow(ctx, cancel, cfg, Version)
+	err = gui.New()
 	if err != nil {
 		slog.Printf("Failed to create main window: %s", err.Error())
 		os.Exit(1)
 	}
 
-	c, err := client.New(ctx, cancel, cfg, Version)
-	if err != nil {
-		gui.MessageBox("Error", "Failed to create client: "+err.Error(), true)
-		os.Exit(1)
-	}
-	defer slog.Dump(baseName + ".txt")
-	defer c.Done()
+	defer slog.Dump()
 
-	gui.SubscribeClose(func(canceled *bool, reason byte) {
+	/* gui.SubscribeClose(func(canceled *bool, reason byte) {
 		if ctx.Err() != nil {
 			fmt.Println("Accepting exit")
 			return
@@ -71,13 +54,12 @@ func main() {
 	go func() {
 		<-ctx.Done()
 		fmt.Println("Doing clean up process...")
-		c.Done() // close client
 		gui.Close()
 		walk.App().Exit(0)
 		fmt.Println("Done, exiting")
 		slog.Dump(baseName + ".txt")
 		os.Exit(0)
-	}()
+	}() */
 
 	if len(os.Args) > 1 {
 		path := os.Args[1]
@@ -85,12 +67,18 @@ func main() {
 		if len(os.Args) > 2 {
 			fileName = os.Args[2]
 		}
-		err = handler.ArchiveOpenInvoke(path, fileName, true)
+		section := ""
+		if len(os.Args) > 3 {
+			section = os.Args[3]
+		}
+
+		err = gui.Open(path, fileName, section)
 		if err != nil {
 			slog.Printf("Failed to open %s: %s", path, err.Error())
 		}
 	}
 
+	slog.Printf("Started in %s\n", time.Since(start).String())
 	errCode := gui.Run()
 	if errCode != 0 {
 		fmt.Println("Failed to run:", errCode)

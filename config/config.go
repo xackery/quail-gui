@@ -11,7 +11,6 @@ import (
 
 // Config represents a configuration parse
 type Config struct {
-	Version     string
 	baseName    string
 	IsAutoPlay  bool
 	IsAutoPatch bool
@@ -94,8 +93,6 @@ func decode(r io.Reader, cfg *Config) error {
 		key := strings.ToLower(strings.TrimSpace(parts[0]))
 		value := strings.TrimSpace(parts[1])
 		switch key {
-		case "version":
-			cfg.Version = value
 		case "auto_patch":
 			if strings.ToLower(value) == "true" {
 				cfg.IsAutoPatch = true
@@ -169,13 +166,6 @@ func (c *Config) Save() error {
 		key := strings.TrimSpace(parts[0])
 		value := strings.TrimSpace(parts[1])
 		switch key {
-		case "version":
-			if tmpConfig.Version == "1" {
-				continue
-			}
-			out += fmt.Sprintf("%s = %s\n", key, c.Version)
-			tmpConfig.Version = "1"
-			continue
 		case "auto_patch":
 			if tmpConfig.IsAutoPatch {
 				continue
@@ -212,9 +202,6 @@ func (c *Config) Save() error {
 		out += line + "\n"
 	}
 
-	if tmpConfig.Version != "1" && c.Version != "" {
-		out += fmt.Sprintf("version = %s\n", c.Version)
-	}
 	if !tmpConfig.IsAutoPatch {
 		if c.IsAutoPatch {
 			out += "auto_patch = true\n"

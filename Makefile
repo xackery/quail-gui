@@ -1,5 +1,12 @@
 NAME ?= quail-gui
-VERSION ?= 0.0.4
+VERSION ?= 0.0.5
+
+
+run: build-windows
+	@echo "run: running"
+	mkdir -p bin
+	cd bin && wine64 ${NAME}.exe ../../eq/dodequip.eqg
+	@-killall wine64-preloader
 
 # CICD triggers this
 .PHONY: set-variable
@@ -22,13 +29,9 @@ sanitize:
 	go test -tags ci -covermode=atomic -coverprofile=coverage.out ./...
     coverage=`go tool cover -func coverage.out | grep total | tr -s '\t' | cut -f 3 | grep -o '[^%]*'`
 
-run: sanitize
-	@echo "run: building"
-	mkdir -p bin
-	cd bin && go run ../main.go
 
 .PHONY: build-all
-build-all: sanitize build-prepare build-linux build-darwin build-windows	
+build-all: sanitize build-prepare build-linux build-darwin build-windows
 .PHONY: build-prepare
 build-prepare:
 	@echo "Preparing talkeq ${VERSION}"
@@ -41,7 +44,7 @@ build-darwin:
 .PHONY: build-linux
 build-linux:
 	@echo "Building Linux ${VERSION}"
-	@GOOS=linux GOARCH=amd64 go build -buildmode=pie -ldflags="-X main.Version=${VERSION} -w" -o bin/${NAME}-linux-x64 main.go		
+	@GOOS=linux GOARCH=amd64 go build -buildmode=pie -ldflags="-X main.Version=${VERSION} -w" -o bin/${NAME}-linux-x64 main.go
 .PHONY: build-windows
 build-windows:
 	@echo "Building Windows ${VERSION}"

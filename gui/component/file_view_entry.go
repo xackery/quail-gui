@@ -3,7 +3,7 @@ package component
 import "github.com/xackery/wlk/walk"
 
 type FileViewEntry struct {
-	Icon    *walk.Bitmap
+	Icon    *walk.Icon
 	Name    string
 	Ext     string
 	Size    string

@@ -21,3 +21,5 @@ bin
 
 local.mod
 local.sum
+.DS_Store
+*.txt

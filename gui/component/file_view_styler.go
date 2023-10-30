@@ -1,6 +1,8 @@
 package component
 
 import (
+	"fmt"
+
 	"github.com/xackery/quail-gui/slog"
 	"github.com/xackery/wlk/walk"
 )
@@ -16,7 +18,9 @@ func NewFileViewStyler(fileView *FileView) *FileViewStyler {
 }
 
 func (fv *FileViewStyler) StyleCell(style *walk.CellStyle) {
+	fmt.Println("column: ", style.Col())
 	if style.Col() != 0 {
+		style.Image = ""
 		return
 	}
 
