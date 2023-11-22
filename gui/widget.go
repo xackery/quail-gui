@@ -1,7 +1,10 @@
 package gui
 
 import (
+	"path/filepath"
+
 	"github.com/xackery/quail-gui/gui/component"
+	"github.com/xackery/quail-gui/op"
 	"github.com/xackery/quail-gui/slog"
 	"github.com/xackery/wlk/walk"
 )
@@ -11,36 +14,10 @@ var (
 )
 
 type widgetBind struct {
-	file       *walk.TableView
-	fileView   *component.FileView
-	breadcrumb *walk.Label
-}
-
-func (w *widgetBind) onFileChange() {
-	slog.Println("onFileChange")
-}
-
-func (w *widgetBind) onFileActivated() {
-	slog.Println("onFileActivated")
-
-	if w.file.CurrentIndex() < 0 {
-		slog.Println("current index is less than 0")
-		return
-	}
-
-	if w.file.CurrentIndex() >= w.fileView.RowCount() {
-		slog.Println("current index is greater than row count")
-		return
-	}
-	item := w.fileView.Item(w.file.CurrentIndex())
-	if item == nil {
-		slog.Println("item is nil")
-		return
-	}
-
-	selectedFile = item.Name
-	slog.Printf("selected file: %s\n", selectedFile)
-	viewSet(currentViewContext)
+	file        *walk.TableView
+	fileView    *component.FileView
+	element     *walk.TableView
+	elementView *component.ElementView
 }
 
 func (w *widgetBind) onSizeChanged() {
@@ -50,13 +27,16 @@ func (w *widgetBind) onSizeChanged() {
 func (w *widgetBind) breadcrumbRefresh() {
 	text := ""
 	if archive != nil {
-		text += lastPath
+		text += filepath.Base(lastPath)
 	}
-	if currentView != currentViewArchiveFiles {
+	focus := op.Breadcrumb()
+	for focus != "" {
 		if text != "" {
 			text += " > "
 		}
-		text += selectedFile
+
+		text += focus
 	}
-	w.breadcrumb.SetText(text)
+	slog.Println("setting title to", text)
+	mw.SetTitle(text)
 }

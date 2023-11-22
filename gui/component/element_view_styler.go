@@ -5,27 +5,27 @@ import (
 	"github.com/xackery/wlk/walk"
 )
 
-type FileViewStyler struct {
-	fileView *FileView
+type ElementViewStyler struct {
+	elementView *ElementView
 }
 
-func NewFileViewStyler(fileView *FileView) *FileViewStyler {
-	fvs := new(FileViewStyler)
-	fvs.fileView = fileView
+func NewElementViewStyler(elementView *ElementView) *ElementViewStyler {
+	fvs := new(ElementViewStyler)
+	fvs.elementView = elementView
 	return fvs
 }
 
-func (fv *FileViewStyler) StyleCell(style *walk.CellStyle) {
+func (fv *ElementViewStyler) StyleCell(style *walk.CellStyle) {
 	if style.Col() != 0 {
 		style.Image = ""
 		return
 	}
 
-	if style.Row() >= len(fv.fileView.items) {
+	if style.Row() >= len(fv.elementView.items) {
 		return
 	}
 
-	item := fv.fileView.items[style.Row()]
+	item := fv.elementView.items[style.Row()]
 	if item == nil {
 		slog.Printf("item %d is nil\n", style.Row())
 		return

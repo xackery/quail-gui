@@ -1,6 +1,6 @@
 module github.com/xackery/quail-gui
 
-go 1.21.3
+go 1.21
 
 require (
 	github.com/biessek/golang-ico v0.0.0-20180326222316-d348d9ea4670

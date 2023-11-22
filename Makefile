@@ -6,6 +6,13 @@ run: build-windows
 	@echo "run: running"
 	mkdir -p bin
 	cd bin && wine64 ${NAME}.exe ../../eq/dodequip.eqg
+	@#it10810.mod
+	@-killall wine64-preloader
+
+run-%: build-windows
+	@echo "run: running"
+	mkdir -p bin
+	cd bin && wine64 ${NAME}.exe ../../eq/$*
 	@-killall wine64-preloader
 
 # CICD triggers this
@@ -28,7 +35,6 @@ sanitize:
 	staticcheck -go 1.14 ./...
 	go test -tags ci -covermode=atomic -coverprofile=coverage.out ./...
     coverage=`go tool cover -func coverage.out | grep total | tr -s '\t' | cut -f 3 | grep -o '[^%]*'`
-
 
 .PHONY: build-all
 build-all: sanitize build-prepare build-linux build-darwin build-windows

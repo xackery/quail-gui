@@ -9,6 +9,7 @@ import (
 
 	"github.com/xackery/quail-gui/gui/component"
 	"github.com/xackery/quail-gui/ico"
+	"github.com/xackery/quail-gui/op"
 	"github.com/xackery/quail-gui/slog"
 	"github.com/xackery/quail/pfs"
 	"github.com/xackery/quail/quail"
@@ -16,12 +17,9 @@ import (
 )
 
 var (
-	menu         = &menuBind{}
-	lastPath     string
-	archive      *pfs.PFS
-	selectedFile string
-	base         interface{}
-	section      interface{}
+	menu     = &menuBind{}
+	lastPath string
+	archive  *pfs.PFS
 )
 
 type menuBind struct {
@@ -30,27 +28,29 @@ type menuBind struct {
 	fileOpenRecent *walk.Action
 	fileRefresh    *walk.Action
 	fileDelete     *walk.Action
+	fileSave       *walk.Action
 	fileExit       *walk.Action
 	helpAbout      *walk.Action
+	elementRefresh *walk.Action
+	elementDelete  *walk.Action
 }
 
-func (m *menuBind) onFileNew() {
-	slog.Println("new triggered")
-
-}
-
-func Open(path string, fileName string, section string) error {
+func Open(path string, fileName string, element string) error {
 	if mw == nil {
 		return fmt.Errorf("main window not created")
 	}
 
-	slog.Printf("Opening path: %s, file: %s, section: %s\n", path, fileName, section)
+	op.Clear()
+
+	slog.Printf("Opening path: %s, file: %s, section: %s\n", path, fileName, element)
 
 	r, err := os.Open(path)
 	if err != nil {
 		return fmt.Errorf("open %s: %w", path, err)
 	}
 	defer r.Close()
+
+	lastPath = path
 
 	isPFS := false
 	ext := filepath.Ext(strings.ToLower(path))
@@ -66,11 +66,16 @@ func Open(path string, fileName string, section string) error {
 	}
 
 	if !isPFS {
-		base, err = quail.Open(filepath.Base(path), r)
+		name := filepath.Base(path)
+		value, err := quail.Open(name, r)
 		if err != nil {
 			return fmt.Errorf("open file %s: %w", path, err)
 		}
-		viewSet(currentViewContext)
+
+		node := op.NewNode(name, value)
+		op.SetRoot(node)
+		op.SetFocus(node)
+		viewSet(currentViewElement)
 		return nil
 	}
 	archive, err = pfs.New(filepath.Base(path))
@@ -104,56 +109,21 @@ func Open(path string, fileName string, section string) error {
 		return nil
 	}
 
-	selectedFile = fileName
-
 	data, err := archive.File(fileName)
 	if err != nil {
 		return fmt.Errorf("file %s: %w", fileName, err)
 	}
 
-	base, err = quail.Open(fileName, bytes.NewReader(data))
+	value, err := quail.Open(fileName, bytes.NewReader(data))
 	if err != nil {
 		return fmt.Errorf("open file %s: %w", fileName, err)
 	}
 
-	viewSet(currentViewContext)
+	node := op.NewNode(fileName, value)
+	op.SetRoot(node)
+	op.SetFocus(node)
+	//viewSet(currentViewElement)
 	return nil
-}
-
-func (m *menuBind) onFileOpen() {
-	path, err := ShowOpen("Open EQ Archive", "All Archives|*.pfs;*.eqg;*.s3d;*.pak|PFS Files (*.pfs)|*.pfs|EQG Files (*.eqg)|*.eqg|S3D Files (*.s3d)|*.s3d|PAK Files (*.pak)|*.pak", ".")
-	if err != nil {
-		slog.Printf("Failed to open: %s\n", err)
-		return
-	}
-	slog.Printf("Menu Opening %s\n", path)
-	err = Open(path, "", "")
-	if err != nil {
-		slog.Printf("Failed to open: %s\n", err)
-		return
-	}
-}
-
-func (m *menuBind) onFileOpenRecent() {
-	slog.Println("open recent triggered")
-}
-
-func (m *menuBind) onFileRefresh() {
-	slog.Println("refresh triggered")
-}
-
-func (m *menuBind) onFileDelete() {
-	slog.Println("delete triggered")
-}
-
-func (m *menuBind) onFileExit() {
-	slog.Println("File Exit triggered")
-	err := mw.Close()
-	if err != nil {
-		slog.Printf("Failed to close: %s\n", err.Error())
-	}
-	walk.App().Exit(0)
-	slog.Dump()
 }
 
 func (m *menuBind) onHelpAbout() {

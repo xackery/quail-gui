@@ -8,6 +8,7 @@ import (
 
 	"github.com/xackery/quail-gui/gui/component"
 	"github.com/xackery/quail-gui/ico"
+	"github.com/xackery/quail-gui/op"
 	"github.com/xackery/quail-gui/slog"
 	"github.com/xackery/wlk/cpl"
 	"github.com/xackery/wlk/walk"
@@ -15,7 +16,9 @@ import (
 
 const (
 	currentViewArchiveFiles = iota
-	currentViewContext
+	currentViewElement
+	currentViewElementSub
+	currentViewElementSubSub
 )
 
 var (
@@ -33,12 +36,14 @@ func New() error {
 
 	widget.fileView = component.NewFileView()
 	fvs := component.NewFileViewStyler(widget.fileView)
-	currentView = currentViewContext
+	widget.elementView = component.NewElementView()
+	evs := component.NewElementViewStyler(widget.elementView)
+	currentView = currentViewElement
 
 	cmw := cpl.MainWindow{
 		AssignTo:      &mw,
 		Title:         "quail-gui",
-		MinSize:       cpl.Size{Width: 300, Height: 300},
+		MinSize:       cpl.Size{Width: 400, Height: 300},
 		Visible:       false,
 		Name:          "quail-gui",
 		OnSizeChanged: widget.onSizeChanged,
@@ -65,14 +70,15 @@ func New() error {
 			ButtonStyle: cpl.ToolBarButtonImageBeforeText,
 			Items: []cpl.MenuItem{
 				cpl.Action{Image: ico.Grab("back"), AssignTo: &toolbar.back, OnTriggered: toolbar.onBack},
-				cpl.Action{Text: " &New", Image: ico.Grab("open"), AssignTo: &menu.fileNew, OnTriggered: menu.onFileNew},
+				cpl.Separator{},
+				cpl.Action{Text: " &New", Image: ico.Grab("new"), AssignTo: &menu.fileNew, OnTriggered: menu.onFileNew},
+				cpl.Action{Text: "", Image: ico.Grab("save"), AssignTo: &menu.fileSave, OnTriggered: menu.onFileSave},
 				cpl.Action{Image: ico.Grab("delete"), AssignTo: &menu.fileDelete, OnTriggered: menu.onFileDelete},
 			},
 		},
 		OnDropFiles: onDrop,
 		Layout:      cpl.VBox{},
 		Children: []cpl.Widget{
-			cpl.Label{Text: "", AssignTo: &widget.breadcrumb, Font: cpl.Font{PointSize: 10}, TextAlignment: cpl.AlignFar},
 			cpl.TableView{
 				AssignTo:              &widget.file,
 				AlternatingRowBG:      true,
@@ -87,6 +93,28 @@ func New() error {
 					cpl.Action{Text: " Refresh", Image: ico.Grab("refresh"), AssignTo: &menu.fileRefresh, OnTriggered: menu.onFileRefresh},
 					cpl.Separator{},
 					cpl.Action{Text: " Delete", Image: ico.Grab("delete"), AssignTo: &menu.fileDelete, OnTriggered: menu.onFileDelete},
+				},
+				//MaxSize:               cpl.Size{Width: 300, Height: 0},
+				Columns: []cpl.TableViewColumn{
+					{Name: "Name", Width: 160},
+					{Name: "Ext", Width: 40},
+					{Name: "Size", Width: 80},
+				},
+			},
+			cpl.TableView{
+				AssignTo:              &widget.element,
+				AlternatingRowBG:      true,
+				ColumnsOrderable:      true,
+				MultiSelection:        false,
+				Visible:               false,
+				OnCurrentIndexChanged: widget.onElementChange,
+				OnItemActivated:       widget.onElementActivated,
+				StyleCell:             evs.StyleCell,
+				Model:                 widget.elementView,
+				ContextMenuItems: []cpl.MenuItem{
+					cpl.Action{Text: " Refresh", Image: ico.Grab("refresh"), AssignTo: &menu.elementRefresh, OnTriggered: menu.onElementRefresh},
+					cpl.Separator{},
+					cpl.Action{Text: " Delete", Image: ico.Grab("delete"), AssignTo: &menu.elementDelete, OnTriggered: menu.onElementDelete},
 				},
 				//MaxSize:               cpl.Size{Width: 300, Height: 0},
 				Columns: []cpl.TableViewColumn{
@@ -142,7 +170,7 @@ func viewSetBack() {
 	switch currentView {
 	case currentViewArchiveFiles:
 		return
-	case currentViewContext:
+	case currentViewElement:
 		viewSet(currentViewArchiveFiles)
 	}
 }
@@ -154,12 +182,15 @@ func viewSet(view int) {
 
 	switch view {
 	case currentViewArchiveFiles:
-		widget.file.SetVisible(true)
-	case currentViewContext:
-		widget.file.SetVisible(false)
+		op.Clear()
+	case currentViewElement:
+		menu.onElementRefresh()
 	}
-	widget.breadcrumbRefresh()
+	toolbar.back.SetEnabled(view != currentViewArchiveFiles)
+	widget.file.SetVisible(view == currentViewArchiveFiles)
+	widget.element.SetVisible(view != currentViewArchiveFiles)
 	currentView = view
+	widget.breadcrumbRefresh()
 }
 
 func generateSize(in int) string {

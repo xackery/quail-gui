@@ -67,12 +67,12 @@ func main() {
 		if len(os.Args) > 2 {
 			fileName = os.Args[2]
 		}
-		section := ""
+		element := ""
 		if len(os.Args) > 3 {
-			section = os.Args[3]
+			element = os.Args[3]
 		}
 
-		err = gui.Open(path, fileName, section)
+		err = gui.Open(path, fileName, element)
 		if err != nil {
 			slog.Printf("Failed to open %s: %s", path, err.Error())
 		}
