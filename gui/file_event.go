@@ -2,16 +2,19 @@ package gui
 
 import (
 	"bytes"
+	"fmt"
+	"path/filepath"
+	"strings"
 
+	"github.com/xackery/quail-gui/gui/dialog"
 	"github.com/xackery/quail-gui/op"
 	"github.com/xackery/quail-gui/slog"
-	"github.com/xackery/quail/quail"
+	"github.com/xackery/quail/raw"
 	"github.com/xackery/wlk/walk"
 )
 
 func (w *widgetBind) onFileChange() {
 	slog.Println("onFileChange")
-
 }
 
 func (w *widgetBind) onFileActivated() {
@@ -45,18 +48,40 @@ func (w *widgetBind) onFileActivated() {
 		return
 	}
 
-	value, err := quail.Open(item.Name, bytes.NewReader(data))
+	ext := filepath.Ext(strings.ToLower(item.Name))
+	value, err := raw.Read(ext, bytes.NewReader(data))
 	if err != nil {
 		slog.Printf("Failed to open file %s: %s\n", item.Name, err.Error())
 		return
 	}
+	value.SetFileName(item.Name)
 
 	node := op.NewNode(item.Name, value)
 	op.SetRoot(node)
 	op.SetFocus(node)
 
 	slog.Printf("Selected file: %s\n", item.Name)
-	viewSet(currentViewElement)
+
+	extFuncs := map[string]func(*walk.MainWindow, *op.Node) error{
+		".mod": dialog.ShowModEdit,
+		".zon": dialog.ShowZonEdit,
+		".wld": dialog.ShowWldEdit,
+		".mds": dialog.ShowMdsEdit,
+	}
+
+	nodeExt := strings.ToLower(filepath.Ext(item.Name))
+	for ext, f := range extFuncs {
+		if nodeExt != ext {
+			continue
+		}
+		err = f(mw, node)
+		if err != nil {
+			slog.Printf("Failed to show %s edit: %s\n", ext, err.Error())
+			ShowError(fmt.Errorf("edit %s: %w", item.Name, err))
+			return
+		}
+	}
+
 }
 
 func (m *menuBind) onFileNew() {
@@ -73,6 +98,7 @@ func (m *menuBind) onFileOpen() {
 	slog.Printf("Menu Opening %s\n", path)
 	err = Open(path, "", "")
 	if err != nil {
+		walk.MsgBox(mw, "Error", err.Error(), walk.MsgBoxIconError)
 		slog.Printf("Failed to open: %s\n", err)
 		return
 	}

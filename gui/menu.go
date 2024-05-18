@@ -1,7 +1,6 @@
 package gui
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,14 +11,14 @@ import (
 	"github.com/xackery/quail-gui/op"
 	"github.com/xackery/quail-gui/slog"
 	"github.com/xackery/quail/pfs"
-	"github.com/xackery/quail/quail"
+	"github.com/xackery/quail/raw"
 	"github.com/xackery/wlk/walk"
 )
 
 var (
 	menu     = &menuBind{}
 	lastPath string
-	archive  *pfs.PFS
+	archive  *pfs.Pfs
 )
 
 type menuBind struct {
@@ -46,7 +45,7 @@ func Open(path string, fileName string, element string) error {
 
 	r, err := os.Open(path)
 	if err != nil {
-		return fmt.Errorf("open %s: %w", path, err)
+		return err
 	}
 	defer r.Close()
 
@@ -67,24 +66,26 @@ func Open(path string, fileName string, element string) error {
 
 	if !isPFS {
 		name := filepath.Base(path)
-		value, err := quail.Open(name, r)
+		ext := strings.ToLower(filepath.Ext(name))
+		value, err := raw.Read(ext, r)
 		if err != nil {
-			return fmt.Errorf("open file %s: %w", path, err)
+			return fmt.Errorf("quail.Open: %w", err)
 		}
+		value.SetFileName(name)
 
 		node := op.NewNode(name, value)
 		op.SetRoot(node)
 		op.SetFocus(node)
-		viewSet(currentViewElement)
+		viewSet(pfsList)
 		return nil
 	}
 	archive, err = pfs.New(filepath.Base(path))
 	if err != nil {
-		return fmt.Errorf("open archive %s: %w", path, err)
+		return fmt.Errorf("pfs.New: %w", err)
 	}
-	err = archive.Decode(r)
+	err = archive.Read(r)
 	if err != nil {
-		return fmt.Errorf("decode %s: %w", path, err)
+		return fmt.Errorf("decode: %w", err)
 	}
 
 	entries := []*component.FileViewEntry{}
@@ -108,20 +109,20 @@ func Open(path string, fileName string, element string) error {
 		viewSet(currentViewArchiveFiles)
 		return nil
 	}
+	/*
+		data, err := archive.File(fileName)
+		if err != nil {
+			return fmt.Errorf("file %s: %w", fileName, err)
+		}
 
-	data, err := archive.File(fileName)
-	if err != nil {
-		return fmt.Errorf("file %s: %w", fileName, err)
-	}
+		value, err := raw.Read(ext, bytes.NewReader(data))
+		if err != nil {
+			return fmt.Errorf("raw read %s: %w", fileName, err)
+		}
 
-	value, err := quail.Open(fileName, bytes.NewReader(data))
-	if err != nil {
-		return fmt.Errorf("open file %s: %w", fileName, err)
-	}
-
-	node := op.NewNode(fileName, value)
-	op.SetRoot(node)
-	op.SetFocus(node)
+		node := op.NewNode(fileName, value)
+		op.SetRoot(node)
+		op.SetFocus(node) */
 	//viewSet(currentViewElement)
 	return nil
 }

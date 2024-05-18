@@ -62,20 +62,25 @@ func main() {
 	}() */
 
 	if len(os.Args) > 1 {
-		path := os.Args[1]
-		fileName := ""
-		if len(os.Args) > 2 {
-			fileName = os.Args[2]
-		}
-		element := ""
-		if len(os.Args) > 3 {
-			element = os.Args[3]
-		}
+		go func() {
+			time.Sleep(10 * time.Millisecond)
+			path := os.Args[1]
+			fileName := ""
+			if len(os.Args) > 2 {
+				fileName = os.Args[2]
+			}
+			element := ""
+			if len(os.Args) > 3 {
+				element = os.Args[3]
+			}
 
-		err = gui.Open(path, fileName, element)
-		if err != nil {
-			slog.Printf("Failed to open %s: %s", path, err.Error())
-		}
+			err = gui.Open(path, fileName, element)
+			if err != nil {
+				gui.ShowMessageBox("Error", err.Error(), true)
+				slog.Printf("Failed to gui.Open %s: %s\n", path, err.Error())
+			}
+
+		}()
 	}
 
 	slog.Printf("Started in %s\n", time.Since(start).String())

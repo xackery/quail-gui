@@ -14,10 +14,10 @@ var (
 )
 
 type widgetBind struct {
-	file        *walk.TableView
-	fileView    *component.FileView
-	element     *walk.TableView
-	elementView *component.ElementView
+	file     *walk.TableView
+	fileView *component.FileView
+	element  *walk.TableView
+	pfsList  *component.PfsView
 }
 
 func (w *widgetBind) onSizeChanged() {

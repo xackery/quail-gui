@@ -2,9 +2,24 @@ package gui
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/xackery/wlk/walk"
 )
+
+func ShowError(err error) {
+	sections := strings.Split(err.Error(), ": ")
+	if len(sections) < 2 {
+		ShowMessageBox("Error", err.Error(), true)
+		return
+	}
+
+	for i := 1; i < len(sections); i++ {
+		sections[i] = strings.ToUpper(sections[i][0:1]) + sections[i][1:]
+	}
+
+	ShowMessageBox("Failed to "+sections[0], strings.Join(sections[1:], "\n"), true)
+}
 
 func ShowOpen(title string, filter string, initialDirPath string) (string, error) {
 	if mw == nil {
@@ -34,7 +49,9 @@ func ShowMessageBox(title string, message string, isError bool) {
 	if isError {
 		icon = walk.MsgBoxIconError
 	}
+	mw.SetEnabled(false)
 	walk.MsgBox(mw, title, message, icon)
+	mw.SetEnabled(true)
 }
 
 func ShowMessageBoxYesNo(title string, message string) bool {

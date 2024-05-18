@@ -5,17 +5,17 @@ import (
 	"github.com/xackery/wlk/walk"
 )
 
-type ElementViewStyler struct {
-	elementView *ElementView
+type PfsViewStyler struct {
+	elementView *PfsView
 }
 
-func NewElementViewStyler(elementView *ElementView) *ElementViewStyler {
-	fvs := new(ElementViewStyler)
+func NewPfsViewStyler(elementView *PfsView) *PfsViewStyler {
+	fvs := new(PfsViewStyler)
 	fvs.elementView = elementView
 	return fvs
 }
 
-func (fv *ElementViewStyler) StyleCell(style *walk.CellStyle) {
+func (fv *PfsViewStyler) StyleCell(style *walk.CellStyle) {
 	if style.Col() != 0 {
 		style.Image = ""
 		return

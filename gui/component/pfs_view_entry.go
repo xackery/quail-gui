@@ -2,7 +2,7 @@ package component
 
 import "github.com/xackery/wlk/walk"
 
-type ElementViewEntry struct {
+type PfsViewEntry struct {
 	Icon    *walk.Icon
 	Name    string
 	Ext     string

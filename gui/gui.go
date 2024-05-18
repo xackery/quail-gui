@@ -16,9 +16,7 @@ import (
 
 const (
 	currentViewArchiveFiles = iota
-	currentViewElement
-	currentViewElementSub
-	currentViewElementSubSub
+	pfsList
 )
 
 var (
@@ -26,6 +24,15 @@ var (
 	statusBar   *walk.StatusBarItem
 	currentView int
 )
+
+type listBox struct {
+	walk.ReflectListModel
+	items []string
+}
+
+func (m *listBox) Items() interface{} {
+	return m.items
+}
 
 func New() error {
 	if mw != nil {
@@ -36,9 +43,9 @@ func New() error {
 
 	widget.fileView = component.NewFileView()
 	fvs := component.NewFileViewStyler(widget.fileView)
-	widget.elementView = component.NewElementView()
-	evs := component.NewElementViewStyler(widget.elementView)
-	currentView = currentViewElement
+	widget.pfsList = component.NewPfsView()
+	evs := component.NewPfsViewStyler(widget.pfsList)
+	currentView = pfsList
 
 	cmw := cpl.MainWindow{
 		AssignTo:      &mw,
@@ -110,7 +117,7 @@ func New() error {
 				OnCurrentIndexChanged: widget.onElementChange,
 				OnItemActivated:       widget.onElementActivated,
 				StyleCell:             evs.StyleCell,
-				Model:                 widget.elementView,
+				Model:                 widget.pfsList,
 				ContextMenuItems: []cpl.MenuItem{
 					cpl.Action{Text: " Refresh", Image: ico.Grab("refresh"), AssignTo: &menu.elementRefresh, OnTriggered: menu.onElementRefresh},
 					cpl.Separator{},
@@ -147,7 +154,9 @@ func Run() int {
 	}
 
 	mw.SetSize(walk.Size{Width: 300, Height: 300})
-	walk.CenterWindowOnScreen(mw)
+
+	//	walk.CenterWindowOnScreen(mw)
+	mw.SetBounds(walk.Rectangle{X: 400, Y: 300, Width: mw.Width(), Height: mw.Height()})
 
 	mw.SetVisible(true)
 	return mw.Run()
@@ -170,7 +179,7 @@ func viewSetBack() {
 	switch currentView {
 	case currentViewArchiveFiles:
 		return
-	case currentViewElement:
+	case pfsList:
 		viewSet(currentViewArchiveFiles)
 	}
 }
@@ -183,7 +192,7 @@ func viewSet(view int) {
 	switch view {
 	case currentViewArchiveFiles:
 		op.Clear()
-	case currentViewElement:
+	case pfsList:
 		menu.onElementRefresh()
 	}
 	toolbar.back.SetEnabled(view != currentViewArchiveFiles)

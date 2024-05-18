@@ -1,17 +1,20 @@
 package op
 
+import "github.com/xackery/quail/raw"
+
 var (
 	root  *Node
 	focus *Node
 )
 
 type Node struct {
-	name   string
-	parent *Node
-	value  interface{}
+	name     string
+	parent   *Node
+	isEdited bool
+	value    raw.ReadWriter
 }
 
-func NewNode(name string, value interface{}) *Node {
+func NewNode(name string, value raw.ReadWriter) *Node {
 	return &Node{
 		name:  name,
 		value: value,
@@ -22,7 +25,7 @@ func (n *Node) Name() string {
 	return n.name
 }
 
-func (n *Node) Value() interface{} {
+func (n *Node) Value() raw.ReadWriter {
 	return n.value
 }
 
@@ -32,6 +35,14 @@ func (n *Node) Parent() *Node {
 
 func (n *Node) SetParent(parent *Node) {
 	n.parent = parent
+}
+
+func (n *Node) SetIsEdited(isEdited bool) {
+	n.isEdited = isEdited
+}
+
+func (n *Node) IsEdited() bool {
+	return n.isEdited
 }
 
 func Clear() {

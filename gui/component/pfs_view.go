@@ -8,31 +8,31 @@ import (
 )
 
 var (
-	elementView *ElementView
+	pfsView *PfsView
 )
 
-type ElementView struct {
+type PfsView struct {
 	walk.TableModelBase
 	walk.SorterBase
 	sortColumn int
 	sortOrder  walk.SortOrder
-	items      []*ElementViewEntry
+	items      []*PfsViewEntry
 }
 
-func NewElementView() *ElementView {
-	m := new(ElementView)
+func NewPfsView() *PfsView {
+	m := new(PfsView)
 	m.ResetRows()
 	return m
 }
 
 // Called by the TableView from SetModel and every time the model publishes a
 // RowsReset event.
-func (m *ElementView) RowCount() int {
+func (m *PfsView) RowCount() int {
 	return len(m.items)
 }
 
 // Called by the TableView when it needs the text to display for a given cell.
-func (m *ElementView) Value(row, col int) interface{} {
+func (m *PfsView) Value(row, col int) interface{} {
 	item := m.items[row]
 
 	switch col {
@@ -51,19 +51,19 @@ func (m *ElementView) Value(row, col int) interface{} {
 }
 
 // Called by the TableView to retrieve if a given row is checked.
-func (m *ElementView) Checked(row int) bool {
+func (m *PfsView) Checked(row int) bool {
 	return m.items[row].checked
 }
 
 // Called by the TableView when the user toggled the check box of a given row.
-func (m *ElementView) SetChecked(row int, checked bool) error {
+func (m *PfsView) SetChecked(row int, checked bool) error {
 	m.items[row].checked = checked
 
 	return nil
 }
 
 // Called by the TableView to sort the model.
-func (m *ElementView) Sort(col int, order walk.SortOrder) error {
+func (m *PfsView) Sort(col int, order walk.SortOrder) error {
 	m.sortColumn, m.sortOrder = col, order
 
 	sort.SliceStable(m.items, func(i, j int) bool {
@@ -95,7 +95,7 @@ func (m *ElementView) Sort(col int, order walk.SortOrder) error {
 	return m.SorterBase.Sort(col, order)
 }
 
-func (m *ElementView) ResetRows() {
+func (m *PfsView) ResetRows() {
 	m.items = nil
 
 	m.PublishRowsReset()
@@ -103,7 +103,7 @@ func (m *ElementView) ResetRows() {
 	m.Sort(m.sortColumn, m.sortOrder)
 }
 
-func (m *ElementView) SetItems(items []*ElementViewEntry) {
+func (m *PfsView) SetItems(items []*PfsViewEntry) {
 	m.items = items
 
 	m.PublishRowsReset()
@@ -111,6 +111,6 @@ func (m *ElementView) SetItems(items []*ElementViewEntry) {
 	m.Sort(m.sortColumn, m.sortOrder)
 }
 
-func (m *ElementView) Item(row int) *ElementViewEntry {
+func (m *PfsView) Item(row int) *PfsViewEntry {
 	return m.items[row]
 }
