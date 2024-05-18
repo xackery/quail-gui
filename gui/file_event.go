@@ -80,6 +80,13 @@ func (w *widgetBind) onFileActivated() {
 			ShowError(fmt.Errorf("edit %s: %w", item.Name, err))
 			return
 		}
+		if node.IsEdited() {
+			item.Name = fmt.Sprintf("%s*", item.Name)
+			if !isEdited {
+				isEdited = true
+				mw.SetTitle(fmt.Sprintf("%s*", mw.Title()))
+			}
+		}
 	}
 
 }

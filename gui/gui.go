@@ -23,6 +23,7 @@ var (
 	mw          *walk.MainWindow
 	statusBar   *walk.StatusBarItem
 	currentView int
+	isEdited    bool
 )
 
 type listBox struct {

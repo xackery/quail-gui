@@ -19,6 +19,9 @@ run-%: build-windows
 .PHONY: set-variable
 set-version:
 	@echo "VERSION=${VERSION}" >> $$GITHUB_ENV
+	@go mod edit -dropreplace github.com/xackery/wlk
+	@go mod edit -dropreplace github.com/xackery/quail
+
 
 #go install golang.org/x/tools/cmd/goimports@latest
 #go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
