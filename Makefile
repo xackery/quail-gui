@@ -12,10 +12,9 @@ run: build-windows
 run-%: build-windows
 	@echo "run: running"
 	mkdir -p bin
-	@#cp ${EQ_PATH}/$* bin/
+	@cp ${EQ_PATH}/$* bin/
 
 	cd bin && wine64 ${NAME}.exe $*
-	@-killall wine64-preloader
 
 
 # CICD triggers this

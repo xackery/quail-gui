@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,6 +10,7 @@ import (
 
 	_ "embed"
 
+	"github.com/xackery/quail-gui/config"
 	"github.com/xackery/quail-gui/gui"
 	"github.com/xackery/quail-gui/ico"
 	"github.com/xackery/quail-gui/popup"
@@ -25,7 +27,14 @@ func main() {
 	if Version == "" {
 		Version = "0.0.1"
 	}
-	err := ico.Init()
+
+	_, err := config.New(context.Background(), "quail-gui")
+	if err != nil {
+		popup.Errorf(gui.MainWindow(), "config new: %s", err)
+		os.Exit(1)
+	}
+
+	err = ico.Init()
 	if err != nil {
 		popup.Errorf(gui.MainWindow(), "ico init: %s", err)
 		os.Exit(1)

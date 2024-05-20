@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 
+	"github.com/xackery/quail-gui/config"
 	"github.com/xackery/quail-gui/gui/dialog"
 	"github.com/xackery/quail-gui/popup"
 	"github.com/xackery/quail-gui/slog"
@@ -35,10 +36,16 @@ func DialogEdit(itemName string, value raw.ReadWriter) ([]byte, error) {
 	extFuncs := map[string]func(*walk.MainWindow, string, raw.ReadWriter) error{
 		"mod":       dialog.ShowModEdit,
 		"zon":       dialog.ShowZonEdit,
-		"wld":       dialog.ShowWldEdit,
 		"wld.ascii": dialog.ShowWldAsciiEdit,
 		"mds":       dialog.ShowMdsEdit,
 		"txt":       dialog.ShowTxtEdit,
+	}
+	cfg := config.Instance()
+
+	if cfg.IsVirtualWld {
+		extFuncs["wld"] = dialog.ShowWldVirtualEdit
+	} else {
+		extFuncs["wld"] = dialog.ShowWldEdit
 	}
 	for funcType, f := range extFuncs {
 		if valueType != funcType {

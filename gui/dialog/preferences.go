@@ -3,18 +3,52 @@ package dialog
 import (
 	"fmt"
 
+	"github.com/xackery/quail-gui/config"
+	"github.com/xackery/quail-gui/popup"
+	"github.com/xackery/quail-gui/slog"
 	"github.com/xackery/wlk/cpl"
 	"github.com/xackery/wlk/walk"
 )
 
 func ShowPreferences(mw *walk.MainWindow) error {
 	var savePB, cancelPB *walk.PushButton
+
 	formElements := cpl.Composite{
 		Layout:   cpl.VBox{},
 		Children: []cpl.Widget{},
 	}
 
+	cfg := config.Instance()
+
+	var chkIsVirtualWld *walk.CheckBox
+	formElements.Children = append(formElements.Children, cpl.GroupBox{
+		Title:  "WLD Options",
+		Layout: cpl.Grid{Columns: 2},
+		Children: []cpl.Widget{
+			cpl.Label{Text: "Load Virtual Wld:", ToolTipText: "If checked, the WLD will be loaded into virtual properties"},
+			cpl.CheckBox{
+				AssignTo:    &chkIsVirtualWld,
+				Checked:     cfg.IsVirtualWld,
+				ToolTipText: "If checked, the WLD will be loaded into virtual properties",
+			},
+		},
+	})
+
 	var dlg *walk.Dialog
+	onSave := func() {
+		cfg := config.Instance()
+		cfg.IsVirtualWld = chkIsVirtualWld.Checked()
+		err := cfg.Save()
+		if err != nil {
+			popup.Errorf(mw, "save config: %s", err)
+			return
+		}
+
+		slog.Printf("Saved preferences\n")
+
+		dlg.Accept()
+	}
+
 	dia := cpl.Dialog{
 		AssignTo:      &dlg,
 		Title:         "Preferences",
@@ -31,7 +65,7 @@ func ShowPreferences(mw *walk.MainWindow) error {
 					cpl.PushButton{
 						AssignTo:  &savePB,
 						Text:      "Save",
-						OnClicked: func() { dlg.Accept() },
+						OnClicked: onSave,
 					},
 					cpl.PushButton{
 						AssignTo:  &cancelPB,

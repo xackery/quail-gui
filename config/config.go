@@ -9,12 +9,14 @@ import (
 	"strings"
 )
 
+var (
+	instance *Config
+)
+
 // Config represents a configuration parse
 type Config struct {
-	baseName    string
-	IsAutoPlay  bool
-	IsAutoPatch bool
-	IsTorrentOK bool
+	baseName     string
+	IsVirtualWld bool
 }
 
 // New creates a new configuration
@@ -23,6 +25,7 @@ func New(ctx context.Context, baseName string) (*Config, error) {
 	cfg := &Config{
 		baseName: baseName,
 	}
+	instance = cfg
 	path := baseName + ".ini"
 
 	isNewConfig := false
@@ -54,7 +57,9 @@ func New(ctx context.Context, baseName string) (*Config, error) {
 	}
 
 	if isNewConfig {
-		cfg = &Config{}
+		cfg = &Config{
+			IsVirtualWld: true,
+		}
 		err = cfg.Save()
 		if err != nil {
 			return nil, fmt.Errorf("save config: %w", err)
@@ -68,6 +73,33 @@ func New(ctx context.Context, baseName string) (*Config, error) {
 	}
 
 	return cfg, nil
+}
+
+func Instance() *Config {
+	return instance
+}
+
+func ByKey(key string) (string, error) {
+	if instance == nil {
+		return "", fmt.Errorf("config not loaded")
+	}
+	switch key {
+	case "is_virtual_wld":
+		return fmt.Sprintf("%v", instance.IsVirtualWld), nil
+
+	}
+	return "", fmt.Errorf("unknown key: %s", key)
+}
+
+func SetByKey(key, value string) error {
+	if instance == nil {
+		return fmt.Errorf("config not loaded")
+	}
+	switch key {
+	case "is_virtual_wld":
+		instance.IsVirtualWld = value == "true"
+	}
+	return fmt.Errorf("unknown key: %s", key)
 }
 
 // Verify returns an error if configuration appears off
@@ -93,28 +125,10 @@ func decode(r io.Reader, cfg *Config) error {
 		key := strings.ToLower(strings.TrimSpace(parts[0]))
 		value := strings.TrimSpace(parts[1])
 		switch key {
-		case "auto_patch":
+		case "is_virtual_wld":
 			if strings.ToLower(value) == "true" {
-				cfg.IsAutoPatch = true
+				cfg.IsVirtualWld = true
 			}
-			if value == "1" {
-				cfg.IsAutoPatch = true
-			}
-		case "auto_play":
-			if strings.ToLower(value) == "true" {
-				cfg.IsAutoPlay = true
-			}
-			if value == "1" {
-				cfg.IsAutoPlay = true
-			}
-		case "torrent_ok":
-			if strings.ToLower(value) == "true" {
-				cfg.IsTorrentOK = true
-			}
-			if value == "1" {
-				cfg.IsTorrentOK = true
-			}
-
 		}
 	}
 	return nil
@@ -166,61 +180,28 @@ func (c *Config) Save() error {
 		key := strings.TrimSpace(parts[0])
 		value := strings.TrimSpace(parts[1])
 		switch key {
-		case "auto_patch":
-			if tmpConfig.IsAutoPatch {
-				continue
-			}
 
-			if c.IsAutoPatch {
-				value = "true"
-			} else {
-				value = "false"
-			}
-			tmpConfig.IsAutoPatch = true
-		case "auto_play":
-			if tmpConfig.IsAutoPlay {
+		case "is_virtual_wld":
+			if tmpConfig.IsVirtualWld {
 				continue
 			}
-			if c.IsAutoPlay {
+			if c.IsVirtualWld {
 				value = "true"
 			} else {
 				value = "false"
 			}
-			tmpConfig.IsAutoPlay = true
-		case "torrent_ok":
-			if tmpConfig.IsTorrentOK {
-				continue
-			}
-			if c.IsTorrentOK {
-				value = "true"
-			} else {
-				value = "false"
-			}
-			tmpConfig.IsTorrentOK = true
+			tmpConfig.IsVirtualWld = true
 		}
 		line = fmt.Sprintf("%s = %s", key, value)
 		out += line + "\n"
 	}
 
-	if !tmpConfig.IsAutoPatch {
-		if c.IsAutoPatch {
-			out += "auto_patch = true\n"
+	if !tmpConfig.IsVirtualWld {
+		if c.IsVirtualWld {
+			out += "is_virtual_wld = true\n"
 		} else {
-			out += "auto_patch = false\n"
+			out += "is_virtual_wld = false\n"
 		}
-	}
-	if !tmpConfig.IsAutoPlay {
-		if c.IsAutoPlay {
-			out += "auto_play = true\n"
-		} else {
-			out += "auto_play = false\n"
-		}
-	}
-	if !tmpConfig.IsTorrentOK {
-		if c.IsTorrentOK {
-			out += "torrent_ok = true\n"
-		}
-		// no need to flag torrent ok if false
 	}
 
 	err = os.WriteFile(c.baseName+".ini", []byte(out), 0644)

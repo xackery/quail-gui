@@ -6,7 +6,7 @@ require (
 	github.com/biessek/golang-ico v0.0.0-20180326222316-d348d9ea4670
 	github.com/malashin/dds v0.0.0-20190511100755-ab62708f5fe5
 	github.com/sergeymakinen/go-bmp v1.0.0
-	github.com/xackery/quail v0.0.0-20240520082828-b5cf5dcd3e25
+	github.com/xackery/quail v0.0.0-20240520202622-17352798bdcf
 	github.com/xackery/wlk v0.0.14
 	golang.org/x/image v0.16.0
 )
