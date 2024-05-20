@@ -1,6 +1,5 @@
 name: Platform Tests & Build
 on: [push]
-
 jobs:
   platform_tests:
     runs-on: ubuntu-latest
@@ -9,7 +8,12 @@ jobs:
       with:
         persist-credentials: false
     - name: Set Version
-      run: make set-version
+      run: make set-version      
+    - name: Setup environment
+      shell: bash
+      run: |
+        echo "::set-env name=GOPATH::${{ github.workspace }}/go"
+        echo "::add-path::${{ github.workspace }}/go/bin"
     - name: Build binary
       run: |
         make build-windows
