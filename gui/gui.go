@@ -53,8 +53,15 @@ func New() error {
 					cpl.Action{Text: "Save As...", AssignTo: &menuFileSaveAs, OnTriggered: onFileSaveAs},
 					cpl.Separator{},
 					cpl.Action{Text: "&Refresh", Shortcut: cpl.Shortcut{Key: walk.KeyF5}, AssignTo: &menuFileRefresh, OnTriggered: onFileRefresh},
+
 					cpl.Action{Text: "&Close", Shortcut: cpl.Shortcut{Modifiers: walk.ModControl, Key: walk.KeyW}, AssignTo: &menuFileClose, OnTriggered: onFileClose},
 					cpl.Action{Text: "E&xit", Shortcut: cpl.Shortcut{Modifiers: walk.ModControl, Key: walk.KeyQ}, AssignTo: &menuFileExit, OnTriggered: onFileExit},
+				},
+			},
+			cpl.Menu{
+				Text: "&Edit",
+				Items: []cpl.MenuItem{
+					cpl.Action{Text: "&Preferences", AssignTo: &menuEditPreferences, OnTriggered: onEditPreferences},
 				},
 			},
 			cpl.Menu{
@@ -63,7 +70,7 @@ func New() error {
 					cpl.Action{Text: " &New", Shortcut: cpl.Shortcut{Modifiers: walk.ModControl, Key: walk.KeyN}, AssignTo: &menuEntryNew, OnTriggered: onMenuEntryNew},
 					cpl.Separator{},
 					cpl.Action{Text: " &Edit", AssignTo: &menuEntryEdit, OnTriggered: onMenuEntryEdit},
-					cpl.Action{Text: " &Delete", AssignTo: &menuEntryDelete, OnTriggered: onMenuEntryDelete},
+					cpl.Action{Text: " &Delete", Shortcut: cpl.Shortcut{Key: walk.KeyDelete}, AssignTo: &menuEntryDelete, OnTriggered: onMenuEntryDelete},
 					cpl.Separator{},
 					cpl.Action{Text: " &Rename", AssignTo: &menuEntryRename, OnTriggered: onMenuEntryRename},
 				},

@@ -30,4 +30,3 @@ jobs:
         title: "${{ env.VERSION }}.${{ github.run_number }}"
         files: |
           bin/quail-gui.exe
-          bin/quail-gui-hash.txt

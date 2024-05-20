@@ -5,10 +5,26 @@ import (
 	"fmt"
 
 	"github.com/xackery/quail-gui/gui/dialog"
+	"github.com/xackery/quail-gui/popup"
 	"github.com/xackery/quail-gui/slog"
 	"github.com/xackery/quail/raw"
 	"github.com/xackery/wlk/walk"
 )
+
+var (
+	menuEditPreferences *walk.Action
+)
+
+func onEditPreferences() {
+	err := dialog.ShowPreferences(mw)
+	if err != nil {
+		if err.Error() == "cancelled" {
+			return
+		}
+		popup.Errorf(mw, "preferences: %s", err)
+	}
+
+}
 
 func DialogEdit(itemName string, value raw.ReadWriter) ([]byte, error) {
 

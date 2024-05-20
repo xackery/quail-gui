@@ -113,11 +113,69 @@ func onMenuEntryEdit() {
 }
 
 func onMenuEntryDelete() {
-	slog.Println("entry delete triggered")
+	if file.CurrentIndex() < 0 {
+		return
+	}
+	item := fileView.Item(file.CurrentIndex())
+	if item == nil {
+		return
+	}
+	if !popup.MessageBoxYesNo(mw, "Delete entry", "Are you sure you want to delete "+item.Name+"?") {
+		return
+	}
+
+	err := archive.Remove(item.Name)
+	if err != nil {
+		popup.Errorf(mw, "delete file %s: %s", item.Name, err)
+		return
+	}
+	fileView.RemoveItem(file.CurrentIndex())
+	slog.Printf("Deleted %s\n", item.Name)
 }
 
 func onMenuEntryRename() {
-	slog.Println("entry rename triggered")
+	var value string
+	var err error
+	if file.CurrentIndex() < 0 {
+		slog.Printf("Select an entry to rename\n")
+		return
+	}
+	item := fileView.Item(file.CurrentIndex())
+	if item == nil {
+		slog.Printf("Item is nil\n")
+		return
+	}
+
+	itemName := strings.ReplaceAll(item.Name, "*", "")
+
+	for {
+		value, err = popup.InputBox(mw, "Rename entry", "Rename "+itemName+" to what?", "Name", itemName)
+		if err != nil {
+			if err.Error() == "cancelled" {
+				return
+			}
+			popup.Errorf(mw, "input box: %s", err)
+			return
+		}
+
+		for _, entry := range archive.Files() {
+			if !strings.EqualFold(entry.Name(), item.Name) {
+				continue
+			}
+			entry.SetName(value)
+			item.Name = value + "*"
+			isEdited = true
+			err = mw.SetTitle(fmt.Sprintf("%s*", mw.Title()))
+			if err != nil {
+				popup.Errorf(mw, "set title: %s", err)
+				return
+			}
+
+			slog.Printf("Renamed %s to %s\n", item.Name, value)
+			return
+		}
+	}
+
 }
 
 func onEntryChange() {

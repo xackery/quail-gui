@@ -128,3 +128,11 @@ func (m *FileView) ItemByExt(ext string) (int, *FileViewEntry) {
 
 	return -1, nil
 }
+
+func (m *FileView) RemoveItem(row int) {
+	m.items = append(m.items[:row], m.items[row+1:]...)
+
+	m.PublishRowsReset()
+
+	m.Sort(m.sortColumn, m.sortOrder)
+}
