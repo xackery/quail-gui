@@ -1,19 +1,22 @@
 NAME ?= quail-gui
 VERSION ?= 0.0.5
-
+EQ_PATH := ../eq/rof2
 
 run: build-windows
 	@echo "run: running"
 	mkdir -p bin
-	cd bin && wine64 ${NAME}.exe ../../eq/dodequip.eqg
-	@#it10810.mod
-	@-killall wine64-preloader
+	cp ${EQ_PATH}/dodequip.eqg bin/
+
+	cd bin && wine64 ${NAME}.exe dodequip.eqg
 
 run-%: build-windows
 	@echo "run: running"
 	mkdir -p bin
-	cd bin && wine64 ${NAME}.exe ../../eq/rof2/$*
+	@#cp ${EQ_PATH}/$* bin/
+
+	cd bin && wine64 ${NAME}.exe $*
 	@-killall wine64-preloader
+
 
 # CICD triggers this
 .PHONY: set-variable

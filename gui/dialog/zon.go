@@ -3,43 +3,42 @@ package dialog
 import (
 	"fmt"
 
-	"github.com/xackery/quail-gui/op"
 	"github.com/xackery/quail/raw"
 	"github.com/xackery/wlk/cpl"
 	"github.com/xackery/wlk/walk"
 )
 
-func ShowZonEdit(mw *walk.MainWindow, node *op.Node) error {
+func ShowZonEdit(mw *walk.MainWindow, title string, src raw.ReadWriter) error {
 	var savePB, cancelPB *walk.PushButton
-	zd, ok := node.Value().(*raw.Zon)
+	data, ok := src.(*raw.Zon)
 	if !ok {
-		return fmt.Errorf("failed to cast zon")
+		return fmt.Errorf("cast zon")
 	}
 
 	defaultModel := ""
-	if len(zd.Models) > 0 {
-		defaultModel = zd.Models[0]
+	if len(data.Models) > 0 {
+		defaultModel = data.Models[0]
 	}
 	models := []string{}
-	for _, model := range zd.Models {
+	for _, model := range data.Models {
 		models = append(models, model)
 	}
 
 	defaultObject := ""
-	if len(zd.Objects) > 0 {
-		defaultObject = zd.Objects[0].ModelName
+	if len(data.Objects) > 0 {
+		defaultObject = data.Objects[0].ModelName
 	}
 	objects := []string{}
-	for _, object := range zd.Objects {
+	for _, object := range data.Objects {
 		objects = append(objects, object.ModelName)
 	}
 
 	defaultRegion := ""
-	if len(zd.Regions) > 0 {
-		defaultRegion = zd.Regions[0].Name
+	if len(data.Regions) > 0 {
+		defaultRegion = data.Regions[0].Name
 	}
 	regions := []string{}
-	for _, region := range zd.Regions {
+	for _, region := range data.Regions {
 		regions = append(regions, region.Name)
 	}
 
@@ -50,7 +49,7 @@ func ShowZonEdit(mw *walk.MainWindow, node *op.Node) error {
 				cpl.Label{Text: "Version:"},
 				cpl.ComboBox{
 					Editable: false,
-					Value:    fmt.Sprintf("%d", zd.Version),
+					Value:    fmt.Sprintf("%d", data.Version),
 					Model:    []string{"1", "2", "3"},
 				},
 			),
@@ -58,7 +57,7 @@ func ShowZonEdit(mw *walk.MainWindow, node *op.Node) error {
 			cpl.ListBox{
 				Model: models,
 				OnItemActivated: func() {
-					fmt.Println("item activated: ", zd.Models)
+					fmt.Println("item activated: ", data.Models)
 				},
 			},
 			cpl.Label{Text: "Models:"},
@@ -109,7 +108,7 @@ func ShowZonEdit(mw *walk.MainWindow, node *op.Node) error {
 	var dlg *walk.Dialog
 	dia := cpl.Dialog{
 		AssignTo:      &dlg,
-		Title:         zd.FileName(),
+		Title:         data.FileName(),
 		DefaultButton: &savePB,
 		CancelButton:  &cancelPB,
 		MinSize:       cpl.Size{Width: 300, Height: 300},
@@ -139,10 +138,8 @@ func ShowZonEdit(mw *walk.MainWindow, node *op.Node) error {
 		return fmt.Errorf("run dialog: %w", err)
 	}
 	if result != walk.DlgCmdOK {
-		return nil
+		return fmt.Errorf("cancelled")
 	}
-
-	node.SetIsEdited(true)
 
 	return nil
 }

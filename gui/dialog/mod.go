@@ -3,48 +3,47 @@ package dialog
 import (
 	"fmt"
 
-	"github.com/xackery/quail-gui/op"
 	"github.com/xackery/quail/raw"
 	"github.com/xackery/wlk/cpl"
 	"github.com/xackery/wlk/walk"
 )
 
-func ShowModEdit(mw *walk.MainWindow, node *op.Node) error {
+func ShowModEdit(mw *walk.MainWindow, title string, src raw.ReadWriter) error {
 	var savePB, cancelPB *walk.PushButton
-	zd, ok := node.Value().(*raw.Mod)
+	data, ok := src.(*raw.Mod)
 	if !ok {
-		return fmt.Errorf("failed to cast mod")
+		return fmt.Errorf("cast mod")
 	}
 
 	materials := []string{}
-	for _, material := range zd.Materials {
+	for _, material := range data.Materials {
 		materials = append(materials, material.Name)
 	}
 
 	defaultBone := ""
-	if len(zd.Bones) > 0 {
-		defaultBone = zd.Bones[0].Name
+	if len(data.Bones) > 0 {
+		defaultBone = data.Bones[0].Name
 	}
 	bones := []string{}
-	for _, bone := range zd.Bones {
+	for _, bone := range data.Bones {
 		bones = append(bones, bone.Name)
 	}
 
 	defaultVertex := ""
-	if len(zd.Vertices) > 0 {
+	if len(data.Vertices) > 0 {
 		defaultVertex = "1"
 	}
 	vertices := []string{}
-	for i := 0; i < len(zd.Vertices); i++ {
+	for i := 0; i < len(data.Vertices); i++ {
 		vertices = append(vertices, fmt.Sprintf("%d", i+1))
 	}
 
 	defaultTriangle := ""
-	if len(zd.Triangles) > 0 {
+	if len(data.Triangles) > 0 {
 		defaultTriangle = "1"
 	}
 	triangles := []string{}
-	for i := 0; i < len(zd.Triangles); i++ {
+	for i := 0; i < len(data.Triangles); i++ {
 		triangles = append(triangles, fmt.Sprintf("%d", i+1))
 	}
 
@@ -55,7 +54,7 @@ func ShowModEdit(mw *walk.MainWindow, node *op.Node) error {
 				cpl.Label{Text: "Version:"},
 				cpl.ComboBox{
 					Editable: false,
-					Value:    fmt.Sprintf("%d", zd.Version),
+					Value:    fmt.Sprintf("%d", data.Version),
 					Model:    []string{"1", "2", "3"},
 				},
 			),
@@ -63,7 +62,7 @@ func ShowModEdit(mw *walk.MainWindow, node *op.Node) error {
 			cpl.ListBox{
 				Model: materials,
 				OnItemActivated: func() {
-					fmt.Println("item activated: ", zd.Materials)
+					fmt.Println("item activated: ", data.Materials)
 				},
 			},
 			cpl.Label{Text: "Bones:"},
@@ -114,7 +113,7 @@ func ShowModEdit(mw *walk.MainWindow, node *op.Node) error {
 	var dlg *walk.Dialog
 	dia := cpl.Dialog{
 		AssignTo:      &dlg,
-		Title:         zd.FileName(),
+		Title:         data.FileName(),
 		DefaultButton: &savePB,
 		CancelButton:  &cancelPB,
 		MinSize:       cpl.Size{Width: 300, Height: 300},
@@ -144,10 +143,8 @@ func ShowModEdit(mw *walk.MainWindow, node *op.Node) error {
 		return fmt.Errorf("run dialog: %w", err)
 	}
 	if result != walk.DlgCmdOK {
-		return nil
+		return fmt.Errorf("cancelled")
 	}
-
-	node.SetIsEdited(true)
 
 	return nil
 }

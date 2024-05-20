@@ -38,6 +38,10 @@ func (fv *FileViewStyler) StyleCell(style *walk.CellStyle) {
 
 	style.Image = item.Icon
 
+	//	canvas.DrawImagePixels(item.Icon, walk.Point{X: 0, Y: 0})
+	//canvas := style.Canvas()
+	//canvas.DrawImagePixels(item.Icon, walk.Point{X: 0, Y: 0})
+
 	/* canvas := style.Canvas()
 	if canvas == nil {
 		return

@@ -3,26 +3,25 @@ package dialog
 import (
 	"fmt"
 
-	"github.com/xackery/quail-gui/op"
 	"github.com/xackery/quail/raw"
 	"github.com/xackery/wlk/cpl"
 	"github.com/xackery/wlk/walk"
 )
 
-func ShowWldEdit(mw *walk.MainWindow, node *op.Node) error {
+func ShowWldEdit(mw *walk.MainWindow, title string, src raw.ReadWriter) error {
 	var savePB, cancelPB *walk.PushButton
-	zd, ok := node.Value().(*raw.Wld)
+	data, ok := src.(*raw.Wld)
 	if !ok {
-		return fmt.Errorf("failed to cast wld")
+		return fmt.Errorf("cast wld")
 	}
 
 	defaultFragment := ""
-	if len(zd.Fragments) > 0 {
-		defaultFragment = fmt.Sprintf("%d: %s", 1, raw.FragName(zd.Fragments[1].FragCode()))
+	if len(data.Fragments) > 0 {
+		defaultFragment = fmt.Sprintf("%d: %s", 1, raw.FragName(data.Fragments[1].FragCode()))
 	}
 	fragments := []string{}
-	for i := 1; i < len(zd.Fragments); i++ {
-		fragment, ok := zd.Fragments[i]
+	for i := 1; i < len(data.Fragments); i++ {
+		fragment, ok := data.Fragments[i]
 		if !ok {
 			continue
 		}
@@ -36,7 +35,7 @@ func ShowWldEdit(mw *walk.MainWindow, node *op.Node) error {
 				cpl.Label{Text: "Version:"},
 				cpl.ComboBox{
 					Editable: false,
-					Value:    fmt.Sprintf("%d", zd.Version),
+					Value:    fmt.Sprintf("%d", data.Version),
 					Model:    []string{"1", "2", "3"},
 				},
 			),
@@ -60,7 +59,7 @@ func ShowWldEdit(mw *walk.MainWindow, node *op.Node) error {
 	var dlg *walk.Dialog
 	dia := cpl.Dialog{
 		AssignTo:      &dlg,
-		Title:         zd.FileName(),
+		Title:         data.FileName(),
 		DefaultButton: &savePB,
 		CancelButton:  &cancelPB,
 		MinSize:       cpl.Size{Width: 300, Height: 300},
@@ -90,10 +89,8 @@ func ShowWldEdit(mw *walk.MainWindow, node *op.Node) error {
 		return fmt.Errorf("run dialog: %w", err)
 	}
 	if result != walk.DlgCmdOK {
-		return nil
+		return fmt.Errorf("cancelled")
 	}
-
-	node.SetIsEdited(true)
 
 	return nil
 }

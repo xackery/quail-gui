@@ -8,40 +8,21 @@ import (
 
 	"github.com/xackery/quail-gui/gui/component"
 	"github.com/xackery/quail-gui/ico"
-	"github.com/xackery/quail-gui/op"
 	"github.com/xackery/quail-gui/slog"
 	"github.com/xackery/quail/pfs"
 	"github.com/xackery/quail/raw"
-	"github.com/xackery/wlk/walk"
 )
 
-var (
-	menu     = &menuBind{}
-	lastPath string
-	archive  *pfs.Pfs
-)
-
-type menuBind struct {
-	fileNew        *walk.Action
-	fileOpen       *walk.Action
-	fileOpenRecent *walk.Action
-	fileRefresh    *walk.Action
-	fileDelete     *walk.Action
-	fileSave       *walk.Action
-	fileExit       *walk.Action
-	helpAbout      *walk.Action
-	elementRefresh *walk.Action
-	elementDelete  *walk.Action
-}
-
-func Open(path string, fileName string, element string) error {
+func Open(path string) error {
 	if mw == nil {
 		return fmt.Errorf("main window not created")
 	}
 
-	op.Clear()
+	if path == "" {
+		return fmt.Errorf("cancelled")
+	}
 
-	slog.Printf("Opening path: %s, file: %s, section: %s\n", path, fileName, element)
+	slog.Printf("Opening path: %s\n", path)
 
 	r, err := os.Open(path)
 	if err != nil {
@@ -49,10 +30,9 @@ func Open(path string, fileName string, element string) error {
 	}
 	defer r.Close()
 
-	lastPath = path
-
 	isPFS := false
 	ext := filepath.Ext(strings.ToLower(path))
+
 	switch ext {
 	case ".pfs":
 		isPFS = true
@@ -73,60 +53,58 @@ func Open(path string, fileName string, element string) error {
 		}
 		value.SetFileName(name)
 
-		node := op.NewNode(name, value)
-		op.SetRoot(node)
-		op.SetFocus(node)
-		viewSet(pfsList)
 		return nil
 	}
+
 	archive, err = pfs.New(filepath.Base(path))
 	if err != nil {
 		return fmt.Errorf("pfs.New: %w", err)
 	}
+
 	err = archive.Read(r)
 	if err != nil {
+		archive = nil
 		return fmt.Errorf("decode: %w", err)
 	}
 
+	archivePath = path
+
+	isWorldFile := false
 	entries := []*component.FileViewEntry{}
 	files := archive.Files()
 	for _, fe := range files {
 		ext := strings.ToLower(filepath.Ext(fe.Name()))
+		img, err := ico.Generate(ext, fe.Data())
+		if err != nil {
+			slog.Printf("Failed to generate icon for %s: %s\n", fe.Name(), err.Error())
+			img = ico.Grab("unk")
+		}
+
 		fve := &component.FileViewEntry{
-			Icon:    ico.Generate(strings.ToLower(filepath.Ext(fe.Name())), fe.Data()),
+			Icon:    img,
 			Name:    fe.Name(),
 			Ext:     ext,
 			Size:    generateSize(len(fe.Data())),
 			RawSize: len(fe.Data()),
 		}
+		if ext == ".wld" || ext == ".zon" {
+			isWorldFile = true
+		}
 
 		entries = append(entries, fve)
 	}
-	widget.fileView.SetItems(entries)
+	fileView.SetItems(entries)
+	file.SetLastColumnStretched(true)
 	slog.Printf("Loaded %d files\n", len(entries))
-
-	if len(fileName) == 0 {
-		viewSet(currentViewArchiveFiles)
-		return nil
+	if len(entries) > 0 {
+		file.SetCurrentIndex(0)
+		entrySetActive(true)
 	}
-	/*
-		data, err := archive.File(fileName)
-		if err != nil {
-			return fmt.Errorf("file %s: %w", fileName, err)
-		}
+	menuEntryEditWorld.SetEnabled(isWorldFile)
 
-		value, err := raw.Read(ext, bytes.NewReader(data))
-		if err != nil {
-			return fmt.Errorf("raw read %s: %w", fileName, err)
-		}
+	fileName := filepath.Base(path)
 
-		node := op.NewNode(fileName, value)
-		op.SetRoot(node)
-		op.SetFocus(node) */
-	//viewSet(currentViewElement)
+	mw.SetTitle(fileName)
+
 	return nil
-}
-
-func (m *menuBind) onHelpAbout() {
-	slog.Println("about triggered")
 }

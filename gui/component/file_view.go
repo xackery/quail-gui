@@ -7,10 +7,6 @@ import (
 	"github.com/xackery/wlk/walk"
 )
 
-var (
-	fileView *FileView
-)
-
 type FileView struct {
 	walk.TableModelBase
 	walk.SorterBase
@@ -36,8 +32,6 @@ func (m *FileView) Value(row, col int) interface{} {
 	item := m.items[row]
 
 	switch col {
-	case -1:
-		return nil
 	case 0:
 		return item.Name
 	case 1:
@@ -81,10 +75,12 @@ func (m *FileView) Sort(col int, order walk.SortOrder) error {
 		case -1:
 			return false
 		case 0:
-			return c(a.Name < b.Name)
-		case 1:
 			return c(a.Ext < b.Ext)
+		case 1:
+			return c(a.Name < b.Name)
 		case 2:
+			return c(a.Ext < b.Ext)
+		case 3:
 			return c(a.RawSize < b.RawSize)
 		}
 
@@ -111,6 +107,24 @@ func (m *FileView) SetItems(items []*FileViewEntry) {
 	m.Sort(m.sortColumn, m.sortOrder)
 }
 
+func (m *FileView) AddItem(item *FileViewEntry) {
+	m.items = append(m.items, item)
+
+	m.PublishRowsReset()
+
+	m.Sort(m.sortColumn, m.sortOrder)
+}
+
 func (m *FileView) Item(row int) *FileViewEntry {
 	return m.items[row]
+}
+
+func (m *FileView) ItemByExt(ext string) (int, *FileViewEntry) {
+	for idx, item := range m.items {
+		if item.Ext == ext {
+			return idx, item
+		}
+	}
+
+	return -1, nil
 }
