@@ -198,23 +198,40 @@ func onEntryActivate() {
 
 func onMenuEntryEditWorld() {
 
-	idx, item := fileView.ItemByExt(".wld")
-	if item == nil {
-		idx, item = fileView.ItemByExt(".zon")
-		if item == nil {
-			slog.Printf("No world file found\n")
-			menuEntryEditWorld.SetEnabled(false)
-			return
-		}
-	}
-
-	err := file.SetCurrentIndex(idx)
-	if err != nil {
-		popup.Errorf(mw, "set current index: %s", err)
+	wldName := filepath.Base(archivePath)
+	// replace ext with .wld
+	wldName = strings.ReplaceAll(wldName, filepath.Ext(wldName), ".wld")
+	idx, item := fileView.ItemByName(wldName)
+	if item != nil {
+		file.SetCurrentIndex(idx)
+		EntryEdit()
 		return
 	}
 
-	EntryEdit()
+	wldName = strings.ReplaceAll(wldName, ".wld", ".zon")
+	idx, item = fileView.ItemByName(wldName)
+	if item != nil {
+		file.SetCurrentIndex(idx)
+		EntryEdit()
+		return
+	}
+
+	idx, item = fileView.ItemByExt(".wld")
+	if item != nil {
+		file.SetCurrentIndex(idx)
+		EntryEdit()
+		return
+	}
+
+	idx, item = fileView.ItemByExt(".zon")
+	if item != nil {
+		file.SetCurrentIndex(idx)
+		EntryEdit()
+		return
+	}
+
+	slog.Printf("No world file found\n")
+	menuEntryEditWorld.SetEnabled(false)
 }
 
 func EntryEdit() {
@@ -255,6 +272,24 @@ func EntryEdit() {
 		return
 	}
 	value.SetFileName(itemName)
+
+	if itemName == "objects.wld" || itemName == "lights.wld" {
+		archiveBaseName := filepath.Base(archivePath)
+		if strings.HasSuffix(archiveBaseName, ".s3d") {
+			archiveBaseName = archiveBaseName[:len(archiveBaseName)-4] + ".wld"
+		}
+		wldData, err := archive.File(archiveBaseName)
+		if err != nil {
+			popup.Errorf(mw, "open file %s: %s", archiveBaseName, err)
+			return
+		}
+		_, err = raw.Read(".wld", bytes.NewReader(wldData))
+		if err != nil {
+			popup.Errorf(mw, "read raw %s: %s", archiveBaseName, err)
+			return
+		}
+		slog.Printf("Opened %s\n", archiveBaseName)
+	}
 
 	slog.Printf("Selected file: %s\n", itemName)
 

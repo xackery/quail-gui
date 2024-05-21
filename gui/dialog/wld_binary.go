@@ -25,7 +25,7 @@ func ShowWldEdit(mw *walk.MainWindow, title string, src raw.ReadWriter) error {
 		if !ok {
 			continue
 		}
-		fragments = append(fragments, fmt.Sprintf("%d: %s", i+1, raw.FragName(fragment.FragCode())))
+		fragments = append(fragments, fmt.Sprintf("%d: %s", i, raw.FragName(fragment.FragCode())))
 	}
 
 	formElements := cpl.Composite{

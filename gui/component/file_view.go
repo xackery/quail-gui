@@ -129,6 +129,16 @@ func (m *FileView) ItemByExt(ext string) (int, *FileViewEntry) {
 	return -1, nil
 }
 
+func (m *FileView) ItemByName(name string) (int, *FileViewEntry) {
+	for idx, item := range m.items {
+		if item.Name == name {
+			return idx, item
+		}
+	}
+
+	return -1, nil
+}
+
 func (m *FileView) RemoveItem(row int) {
 	m.items = append(m.items[:row], m.items[row+1:]...)
 

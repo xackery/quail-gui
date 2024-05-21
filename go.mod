@@ -6,7 +6,7 @@ require (
 	github.com/biessek/golang-ico v0.0.0-20180326222316-d348d9ea4670
 	github.com/malashin/dds v0.0.0-20190511100755-ab62708f5fe5
 	github.com/sergeymakinen/go-bmp v1.0.0
-	github.com/xackery/quail v0.0.0-20240520202622-17352798bdcf
+	github.com/xackery/quail v0.0.0-20240521113642-2027d85487b1
 	github.com/xackery/wlk v0.0.14
 	golang.org/x/image v0.16.0
 )
@@ -20,3 +20,5 @@ require (
 	golang.org/x/sys v0.20.0 // indirect
 	gopkg.in/Knetic/govaluate.v3 v3.0.0 // indirect
 )
+
+//replace github.com/xackery/quail => ../quail

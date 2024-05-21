@@ -16,6 +16,9 @@ run-%: build-windows
 
 	cd bin && wine64 ${NAME}.exe $*
 
+view-quail-%: build-windows
+	cd bin && wine64 ${NAME}.exe ../../quail/test/$*
+
 
 # CICD triggers this
 .PHONY: set-variable

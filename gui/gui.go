@@ -54,7 +54,7 @@ func New() error {
 					cpl.Separator{},
 					cpl.Action{Text: "&Refresh", Shortcut: cpl.Shortcut{Key: walk.KeyF5}, AssignTo: &menuFileRefresh, OnTriggered: onFileRefresh},
 
-					cpl.Action{Text: "&Close", Shortcut: cpl.Shortcut{Modifiers: walk.ModControl, Key: walk.KeyW}, AssignTo: &menuFileClose, OnTriggered: onFileClose},
+					cpl.Action{Text: "&Close", Shortcut: cpl.Shortcut{Modifiers: walk.ModControl, Key: walk.KeyX}, AssignTo: &menuFileClose, OnTriggered: onFileClose},
 					cpl.Action{Text: "E&xit", Shortcut: cpl.Shortcut{Modifiers: walk.ModControl, Key: walk.KeyQ}, AssignTo: &menuFileExit, OnTriggered: onFileExit},
 				},
 			},
@@ -92,7 +92,7 @@ func New() error {
 				cpl.Action{Image: ico.Grab("edit"), AssignTo: &menuEntryEdit, OnTriggered: onMenuEntryEdit},
 				cpl.Action{Image: ico.Grab("delete"), AssignTo: &menuEntryDelete, OnTriggered: onMenuEntryDelete},
 				cpl.Separator{},
-				cpl.Action{Image: ico.Grab("wld"), AssignTo: &menuEntryEditWorld, OnTriggered: onMenuEntryEditWorld},
+				cpl.Action{Image: ico.Grab("wld"), Shortcut: cpl.Shortcut{Modifiers: walk.ModControl, Key: walk.KeyW}, AssignTo: &menuEntryEditWorld, OnTriggered: onMenuEntryEditWorld},
 			},
 		},
 		OnDropFiles: onDrop,

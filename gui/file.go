@@ -29,7 +29,7 @@ func onFileNew() {
 }
 
 func onFileOpen() {
-	path, err := popup.Open(mw, "Open EQ Archive", "All Archives|*.pfs;*.eqg;*.s3d;*.pak|PFS Files (*.pfs)|*.pfs|EQG Files (*.eqg)|*.eqg|S3D Files (*.s3d)|*.s3d|PAK Files (*.pak)|*.pak", ".")
+	path, err := popup.Open(mw, "Open EQ Archive", "All Archives|*.pfs;*.eqg;*.s3d;*.pak|PFS Files (*.pfs)|*.pfs|EQG Files (*.eqg)|*.eqg|S3D Files (*.s3d)|*.s3d|PAK Files (*.pak)|*.pak|All Files (*.*)|*.*", ".")
 	if err != nil {
 		if err.Error() == "cancelled" {
 			return
