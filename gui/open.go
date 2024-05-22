@@ -69,7 +69,10 @@ func Open(path string) error {
 
 	archivePath = path
 
-	isWorldFile := false
+	setJumpLightEnabled(false)
+	setJumpObjectEnabled(false)
+	setJumpWorldEnabled(false)
+
 	entries := []*component.FileViewEntry{}
 	files := archive.Files()
 	for _, fe := range files {
@@ -88,7 +91,16 @@ func Open(path string) error {
 			RawSize: len(fe.Data()),
 		}
 		if ext == ".wld" || ext == ".zon" {
-			isWorldFile = true
+			baseName := strings.ToLower(filepath.Base(fe.Name()))
+			baseName = strings.ReplaceAll(baseName, ".wld", "")
+			baseName = strings.ReplaceAll(baseName, ".zon", "")
+			if baseName == "objects" {
+				setJumpObjectEnabled(true)
+			} else if baseName == "lights" {
+				setJumpLightEnabled(true)
+			} else {
+				setJumpWorldEnabled(true)
+			}
 		}
 
 		entries = append(entries, fve)
@@ -100,7 +112,6 @@ func Open(path string) error {
 		file.SetCurrentIndex(0)
 		entrySetActive(true)
 	}
-	menuEntryEditWorld.SetEnabled(isWorldFile)
 
 	fileName := filepath.Base(path)
 

@@ -2,12 +2,12 @@ package dialog
 
 import (
 	"github.com/xackery/quail-gui/slog"
-	"github.com/xackery/quail/vwld"
+	"github.com/xackery/quail/wld/virtual"
 	"github.com/xackery/wlk/cpl"
 	"github.com/xackery/wlk/walk"
 )
 
-func virtualSkeletonPage(data *vwld.VWld, page *cpl.TabPage) error {
+func virtualSkeletonPage(data *virtual.Wld, page *cpl.TabPage) error {
 
 	skeletons := []string{}
 	for _, skeleton := range data.Skeletons {

@@ -5,7 +5,7 @@ import (
 
 	"github.com/xackery/quail-gui/popup"
 	"github.com/xackery/quail/raw"
-	"github.com/xackery/quail/vwld"
+	"github.com/xackery/quail/wld/virtual"
 	"github.com/xackery/wlk/cpl"
 	"github.com/xackery/wlk/walk"
 )
@@ -22,7 +22,7 @@ func ShowWldVirtualEdit(mw *walk.MainWindow, title string, src raw.ReadWriter) e
 		return fmt.Errorf("cast wld")
 	}
 
-	data := &vwld.VWld{}
+	data := &virtual.Wld{}
 	err := data.Read(rawData)
 	if err != nil {
 		return fmt.Errorf("read wld: %w", err)

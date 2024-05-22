@@ -2,12 +2,12 @@ package dialog
 
 import (
 	"github.com/xackery/quail-gui/slog"
-	"github.com/xackery/quail/vwld"
+	"github.com/xackery/quail/wld/virtual"
 	"github.com/xackery/wlk/cpl"
 	"github.com/xackery/wlk/walk"
 )
 
-func virtualAnimationPage(data *vwld.VWld, page *cpl.TabPage) error {
+func virtualAnimationPage(data *virtual.Wld, page *cpl.TabPage) error {
 
 	animations := []string{}
 	for _, animation := range data.Animations {

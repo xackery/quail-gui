@@ -2,12 +2,12 @@ package dialog
 
 import (
 	"github.com/xackery/quail-gui/slog"
-	"github.com/xackery/quail/vwld"
+	"github.com/xackery/quail/wld/virtual"
 	"github.com/xackery/wlk/cpl"
 	"github.com/xackery/wlk/walk"
 )
 
-func virtualSpritePage(data *vwld.VWld, page *cpl.TabPage) error {
+func virtualSpritePage(data *virtual.Wld, page *cpl.TabPage) error {
 
 	sprites := []string{}
 	for _, sprite := range data.Sprites {

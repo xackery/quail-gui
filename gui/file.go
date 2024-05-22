@@ -50,7 +50,11 @@ func onFileOpenRecent() {
 }
 
 func onFileRefresh() {
-	slog.Println("file refresh triggered")
+	err := Open(archivePath)
+	if err != nil {
+		popup.Errorf(mw, "refresh: %s", err)
+		return
+	}
 }
 
 func onFileDelete() {

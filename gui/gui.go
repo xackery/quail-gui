@@ -76,6 +76,14 @@ func New() error {
 				},
 			},
 			cpl.Menu{
+				Text: "&Jump",
+				Items: []cpl.MenuItem{
+					cpl.Action{Text: "to &World", Shortcut: cpl.Shortcut{Modifiers: walk.ModControl, Key: walk.KeyW}, AssignTo: &menuJumpToWorld, OnTriggered: onMenuJumpToWorld},
+					cpl.Action{Text: "to &Lights", Shortcut: cpl.Shortcut{Modifiers: walk.ModControl, Key: walk.KeyL}, AssignTo: &menuJumpToLight, OnTriggered: onMenuJumpToLight},
+					cpl.Action{Text: "to &Objects", Shortcut: cpl.Shortcut{Modifiers: walk.ModControl, Key: walk.KeyB}, AssignTo: &menuJumpToObject, OnTriggered: onMenuJumpToObject},
+				},
+			},
+			cpl.Menu{
 				Text: "&Help",
 				Items: []cpl.MenuItem{
 					cpl.Action{Text: "&About", AssignTo: &menuHelpAbout, OnTriggered: onHelpAbout},
@@ -92,7 +100,9 @@ func New() error {
 				cpl.Action{Image: ico.Grab("edit"), AssignTo: &menuEntryEdit, OnTriggered: onMenuEntryEdit},
 				cpl.Action{Image: ico.Grab("delete"), AssignTo: &menuEntryDelete, OnTriggered: onMenuEntryDelete},
 				cpl.Separator{},
-				cpl.Action{Image: ico.Grab("wld"), Shortcut: cpl.Shortcut{Modifiers: walk.ModControl, Key: walk.KeyW}, AssignTo: &menuEntryEditWorld, OnTriggered: onMenuEntryEditWorld},
+				cpl.Action{Image: ico.Grab("wld"), AssignTo: &toolbarJumpToWorld, OnTriggered: onMenuJumpToWorld},
+				cpl.Action{Image: ico.Grab("lit"), AssignTo: &toolbarJumpToLight, OnTriggered: onMenuJumpToLight},
+				cpl.Action{Image: ico.Grab("obj"), AssignTo: &toolbarJumpToObject, OnTriggered: onMenuJumpToObject},
 			},
 		},
 		OnDropFiles: onDrop,

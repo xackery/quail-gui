@@ -15,12 +15,11 @@ import (
 )
 
 var (
-	lastEntry          int
-	menuEntryNew       *walk.Action
-	menuEntryEdit      *walk.Action
-	menuEntryEditWorld *walk.Action // shortcut to get world edit
-	menuEntryDelete    *walk.Action
-	menuEntryRename    *walk.Action
+	lastEntry       int
+	menuEntryNew    *walk.Action
+	menuEntryEdit   *walk.Action
+	menuEntryDelete *walk.Action
+	menuEntryRename *walk.Action
 )
 
 func onMenuEntryNew() {
@@ -54,6 +53,7 @@ func onMenuEntryNew() {
 			popup.Errorf(mw, "entry must have an extension")
 			continue
 		}
+		baseName := strings.ReplaceAll(value, ext, "")
 
 		var rawWriter raw.ReadWriter
 
@@ -63,10 +63,16 @@ func onMenuEntryNew() {
 		case ".txt":
 			data = []byte(value)
 		case ".wld":
-			menuEntryEditWorld.SetEnabled(true)
+			if baseName == "objects" {
+				setJumpObjectEnabled(true)
+			} else if baseName == "lights" {
+				setJumpLightEnabled(true)
+			} else {
+				setJumpWorldEnabled(true)
+			}
 			rawWriter = &raw.Wld{MetaFileName: value}
 		case ".zon":
-			menuEntryEditWorld.SetEnabled(true)
+			setJumpWorldEnabled(true)
 			rawWriter = &raw.Zon{MetaFileName: value}
 		default:
 			popup.Errorf(mw, "unsupported extension %s", ext)
@@ -194,44 +200,6 @@ func onEntryChange() {
 
 func onEntryActivate() {
 	EntryEdit()
-}
-
-func onMenuEntryEditWorld() {
-
-	wldName := filepath.Base(archivePath)
-	// replace ext with .wld
-	wldName = strings.ReplaceAll(wldName, filepath.Ext(wldName), ".wld")
-	idx, item := fileView.ItemByName(wldName)
-	if item != nil {
-		file.SetCurrentIndex(idx)
-		EntryEdit()
-		return
-	}
-
-	wldName = strings.ReplaceAll(wldName, ".wld", ".zon")
-	idx, item = fileView.ItemByName(wldName)
-	if item != nil {
-		file.SetCurrentIndex(idx)
-		EntryEdit()
-		return
-	}
-
-	idx, item = fileView.ItemByExt(".wld")
-	if item != nil {
-		file.SetCurrentIndex(idx)
-		EntryEdit()
-		return
-	}
-
-	idx, item = fileView.ItemByExt(".zon")
-	if item != nil {
-		file.SetCurrentIndex(idx)
-		EntryEdit()
-		return
-	}
-
-	slog.Printf("No world file found\n")
-	menuEntryEditWorld.SetEnabled(false)
 }
 
 func EntryEdit() {
