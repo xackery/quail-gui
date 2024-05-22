@@ -1,5 +1,5 @@
 NAME ?= quail-gui
-VERSION ?= 0.0.5
+VERSION ?= 0.1
 EQ_PATH := ../eq/rof2
 
 run: build-windows
@@ -23,9 +23,9 @@ view-quail-%: build-windows
 # CICD triggers this
 .PHONY: set-variable
 set-version:
-	@echo "VERSION=${VERSION}" >> $$GITHUB_ENV
 	@go mod edit -dropreplace github.com/xackery/wlk
 	@go mod edit -dropreplace github.com/xackery/quail
+	@echo "VERSION=${VERSION}" >> $$GITHUB_ENV
 
 
 #go install golang.org/x/tools/cmd/goimports@latest
