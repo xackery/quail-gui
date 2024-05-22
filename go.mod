@@ -21,4 +21,4 @@ require (
 	gopkg.in/Knetic/govaluate.v3 v3.0.0 // indirect
 )
 
-replace github.com/xackery/quail => ../quail
+//replace github.com/xackery/quail => ../quail
